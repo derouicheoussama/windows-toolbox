@@ -1,0 +1,7 @@
+Place ici tes outils portables (.exe) : Victoria, HWiNFO portable, BlueScreenView,
+GPU-Z, TM5, FurMark, etc.
+
+Chaque .exe présent dans ce dossier apparaît automatiquement comme bouton « portable »
+dans l'onglet « Outils tiers » de la Windows 11 Toolbox.
+
+∞ Infinity Coder — Derouiche Oussama
