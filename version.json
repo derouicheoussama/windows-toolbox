@@ -1,6 +1,6 @@
 {
-    "version":  "2.1.0",
+    "version":  "2.2.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "5D9CF891B977A88350214B2D5B4DC5AEFF2C57A1916CE1CD6828A66E7F9F5581",
-    "notes":  "v2.1 : corrections du registre Windows (sauvegarde auto), demarrage BIOS/UEFI, guide reset BIOS, Clear-Tpm, README refait."
+    "sha256":  "DA8E0327F41C73CF015CFF0C237FA9E7D48E47ABF9B30EFC6EB86D4039435788",
+    "notes":  "v2.2 : tests PC portable - ecran Hz + modes supportes, dalle, retro-eclairage, consommation batterie W, puissance chargeur, touchpad."
 }

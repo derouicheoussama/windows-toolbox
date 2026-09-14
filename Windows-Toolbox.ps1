@@ -19,7 +19,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.1.0'
+$script:ToolboxVersion = '2.2.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -56,6 +56,62 @@ namespace WindowsToolbox {
     public static class Win32Hot {
         [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
         [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    }
+}
+'@
+}
+
+if (-not ('WindowsToolbox.DisplayUtil' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
+namespace WindowsToolbox {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct DEVMODE {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+    public static class DisplayUtil {
+        [DllImport("user32.dll", CharSet = CharSet.Ansi)]
+        public static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
+        public static List<string> ListModes() {
+            var results = new List<string>();
+            var dm = new DEVMODE();
+            dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+            for (int i = 0; EnumDisplaySettings(null, i, ref dm); i++) {
+                results.Add(dm.dmPelsWidth + "x" + dm.dmPelsHeight + "@" + dm.dmDisplayFrequency);
+            }
+            return results;
+        }
     }
 }
 '@
@@ -1220,6 +1276,99 @@ shutdown /r /fw /t 20 /c "Redemarrage vers le BIOS/UEFI dans 20 s - shutdown /a 
 'Redemarrage programme dans 20 secondes…'
 '@
 
+# ---------------- Tests PC PORTABLE — écran, Hz, batterie (v2.2) ----------------
+
+$script:CmdScreenHz = @'
+'=== ÉCRAN ACTUEL ==='
+Get-CimInstance Win32_VideoController | ForEach-Object {
+  '{0} : {1} x {2} pixels @ {3} Hz' -f $_.Name, $_.CurrentHorizontalResolution, $_.CurrentVerticalResolution, $_.CurrentRefreshRate
+}
+''
+'=== FRÉQUENCES SUPPORTÉES PAR L''ÉCRAN (modes du pilote) ==='
+try {
+  [WindowsToolbox.DisplayUtil]::ListModes() | ForEach-Object {
+    $p = $_ -split '[x@]'
+    [pscustomobject]@{ Res = ('{0} x {1}' -f $p[0], $p[1]); Hz = [int]$p[2] }
+  } | Group-Object Res | Sort-Object { [int]($_.Name -split ' ')[0] } -Descending | ForEach-Object {
+    '{0,-16} : {1} Hz' -f $_.Name, (($_.Group.Hz | Sort-Object -Unique) -join ', ')
+  }
+  ''
+  '→ Vérifie que les Hz annoncés (60/120/144/240) apparaissent dans la liste.'
+  '→ Pour changer : bouton « Changer les Hz » ou Paramètres > Système > Affichage > Affichage avancé.'
+} catch { 'Énumération indisponible : ' + $_.Exception.Message }
+'@
+
+$script:CmdScreenModel = @'
+$found = $false
+Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID -ErrorAction SilentlyContinue | ForEach-Object {
+  $name = (($_.UserFriendlyName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join '')
+  $maker = (($_.ManufacturerName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join '')
+  if ($name -or $maker) {
+    $found = $true
+    'Écran : {0} {1} — année {2}' -f $maker, $name, $_.YearOfManufacture
+  }
+}
+if (-not $found) { 'Aucun écran exposé par WMI (fréquent pour la dalle interne d''un portable).' }
+'@
+
+$script:CmdBrightTest = @'
+try {
+  $m = Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorBrightnessMethods -ErrorAction Stop
+  $cur = (Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorBrightness -ErrorAction Stop).CurrentBrightness
+  ('Luminosité actuelle : {0} %' -f $cur)
+  'Test du rétro-éclairage : 30% → 70% → 100% → restauration (regarde l''écran)…'
+  foreach ($v in 30, 70, 100) {
+    $m.WmiSetBrightness(1, $v)
+    Start-Sleep -Seconds 2
+  }
+  $m.WmiSetBrightness(1, $cur)
+  ''
+  ('Rétro-éclairage réactif ✓ — luminosité restaurée à {0} %.' -f $cur)
+} catch {
+  'Écran sans rétro-éclairage pilotable (écran externe / PC fixe) : ' + $_.Exception.Message
+}
+'@
+
+$script:CmdBatteryDraw = @'
+$bat = Get-CimInstance Win32_Battery
+if (-not $bat) { 'Aucune batterie détectée (PC fixe).' }
+else {
+  'Mesure de la consommation pendant 30 s — DÉBRANCHE le chargeur maintenant !'
+  $vals = @()
+  1..6 | ForEach-Object {
+    $st = Get-CimInstance -Namespace root\wmi -Class BatteryStatus -ErrorAction SilentlyContinue
+    if ($st -and $st.DischargeRate -gt 0) { $vals += $st.DischargeRate }
+    Start-Sleep -Seconds 5
+  }
+  if ($vals.Count) {
+    $avg = ($vals | Measure-Object -Average).Average
+    $min = ($vals | Measure-Object -Minimum).Minimum
+    $max = ($vals | Measure-Object -Maximum).Maximum
+    'Consommation : moyenne {0:N1} W (min {1:N1} W / max {2:N1} W)' -f ($avg/1000), ($min/1000), ($max/1000)
+    '→ Au repos, une consommation stable (~5-15 W) = bonne santé. Des pics instables = à surveiller.'
+  } else {
+    'Aucune décharge mesurée — le chargeur est branché : débranche-le puis relance ce test.'
+  }
+}
+'@
+
+$script:CmdChargerPower = @'
+$st = Get-CimInstance -Namespace root\wmi -Class BatteryStatus -ErrorAction SilentlyContinue
+if (-not $st) { 'Batterie non exposée (PC fixe).' }
+elseif ($st.PowerOnline) {
+  if ($st.ChargingRate -gt 0) { 'Puissance de charge mesurée : {0:N1} W' -f ($st.ChargingRate/1000) }
+  else { 'Sur secteur, batterie pas en charge (pleine ou quasi pleine) → chargeur OK.' }
+} else { 'Pas branché sur secteur — branche le chargeur puis relance pour mesurer sa puissance.' }
+'@
+
+$script:CmdTouchpad = @'
+'=== Souris / touchpad ==='
+Get-PnpDevice -Class Mouse -PresentOnly -ErrorAction SilentlyContinue | Format-Table Status, FriendlyName -AutoSize
+'=== Périphériques tactiles / touchpad (HID) ==='
+Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.FriendlyName -match 'touch' } | Format-Table Status, FriendlyName -AutoSize
+'→ Test manuel : déplacement du curseur, clic gauche/droit, tap, geste à 2 doigts.'
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -1756,6 +1905,21 @@ function Show-Toolbox {
     Add-CmdButton $tabBuy 'Test son (deux bips)' -Script '[console]::beep(880,400); Start-Sleep -Milliseconds 200; [console]::beep(660,400); ''Deux bips entendus = le son fonctionne (vérifie les haut-parleurs).'''
     Add-CmdButton $tabBuy 'Tester la webcam (Paramètres Caméra)' -Kind 'Gui' -Target 'ms-settings:camera'
     Add-CmdButton $tabBuy 'Ports USB : branche une clé puis vérifie ici' -Script 'Get-PnpDevice -Class USB -PresentOnly | Format-Table Status, FriendlyName -AutoSize'
+
+    Add-Section $tabBuy 'PC PORTABLE — écran & fréquence (Hz)'
+    Add-CmdButton $tabBuy 'Écran : résolution & taux de rafraîchissement (Hz)' -Script $script:CmdScreenHz -Desc 'Hz actuel + toutes les fréquences supportées (60/120/144/240…) — vérifie l''annonce du vendeur'
+    Add-CmdButton $tabBuy 'Écran : modèle & fabricant de la dalle' -Script $script:CmdScreenModel
+    Add-CmdButton $tabBuy 'Test du rétro-éclairage (30% → 100%)' -Script $script:CmdBrightTest -Desc 'Fait varier la luminosité pour vérifier que le rétro-éclairage répond — puis restaure'
+    Add-CmdButton $tabBuy 'Changer les Hz (Paramètres d''affichage avancés)' -Script 'try { Start-Process "ms-settings:displayadvanced" } catch { Start-Process "ms-settings:display" }; ''Sélectionne le taux de rafraîchissement dans « Affichage avancé ».'''
+
+    Add-Section $tabBuy 'PC PORTABLE — batterie & charge'
+    Add-CmdButton $tabBuy 'Test de consommation en temps réel (30 s)' -Script $script:CmdBatteryDraw -Desc 'Mesure les watts consommés sur batterie (débranche le chargeur)'
+    Add-CmdButton $tabBuy 'Puissance du chargeur mesurée (W)' -Script $script:CmdChargerPower -Desc 'Branche le chargeur puis mesure la puissance de charge réelle'
+    Add-CmdButton $tabBuy 'Batterie : état instantané, usure & cycles' -Script $script:CmdRareBattery
+
+    Add-Section $tabBuy 'PC PORTABLE — entrées & son'
+    Add-CmdButton $tabBuy 'Touchpad & souris (périphériques de pointage)' -Script $script:CmdTouchpad
+    Add-CmdButton $tabBuy 'Tester le micro (Paramètres son — entrée)' -Kind 'Gui' -Target 'ms-settings:sound'
 
     Add-Section $tabBuy 'Conseils achat'
     $tip = New-Object Windows.Forms.Label
