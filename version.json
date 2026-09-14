@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "url": "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-  "sha256": "DECFD69646716F310F21ECA1B2DB3E2B79AD5E1A22763459891C824F186F428A",
-  "notes": "v2.0 : raccourci global Ctrl+Alt+T, icone systray, onglet Raccourcis, options persistantes."
+    "version":  "2.1.0",
+    "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
+    "sha256":  "5D9CF891B977A88350214B2D5B4DC5AEFF2C57A1916CE1CD6828A66E7F9F5581",
+    "notes":  "v2.1 : corrections du registre Windows (sauvegarde auto), demarrage BIOS/UEFI, guide reset BIOS, Clear-Tpm, README refait."
 }

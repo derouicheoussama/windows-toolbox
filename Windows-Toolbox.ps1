@@ -19,7 +19,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.0.0'
+$script:ToolboxVersion = '2.1.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -1092,6 +1092,134 @@ if ($out) { Add-R ('Rapport enregistré : ' + $out) } else { Add-R 'Rapport non 
 $r
 '@
 
+# ---------------- Corrections du registre & BIOS (v2.1) ----------------
+
+$script:CmdRegFixTaskMgr = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System" (Join-Path $d "taskmgr-hkcu-$stamp.reg") /y 2>$null
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v DisableTaskMgr /f 2>$null
+reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v DisableTaskMgr /f 2>$null
+'Gestionnaire des taches reactive (sauvegarde dans Documents\WindowsToolbox-RegBackup).'
+'@
+
+$script:CmdRegFixCmd = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCU\Software\Policies\Microsoft\Windows\System" (Join-Path $d "cmd-hkcu-$stamp.reg") /y 2>$null
+reg delete "HKCU\Software\Policies\Microsoft\Windows\System" /v DisableCMD /f 2>$null
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Windows\System" /v DisableCMD /f 2>$null
+'Invite de commandes reactive.'
+'@
+
+$script:CmdRegFixRegedit = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System" (Join-Path $d "regedit-hkcu-$stamp.reg") /y 2>$null
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v DisableRegistryTools /f 2>$null
+reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v DisableRegistryTools /f 2>$null
+'Editeur du registre reactive.'
+'@
+
+$script:CmdRegFixControl = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" (Join-Path $d "explorer-hkcu-$stamp.reg") /y 2>$null
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoControlPanel /f 2>$null
+reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoControlPanel /f 2>$null
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoSettingsPageVisibility /f 2>$null
+'Panneau de configuration et Paramètres réactivés.'
+'@
+
+$script:CmdRegFixExe = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCR\.exe" (Join-Path $d "exe-$stamp.reg") /y 2>$null
+reg export "HKCR\exefile\shell\open\command" (Join-Path $d "exefile-$stamp.reg") /y 2>$null
+reg add "HKCR\.exe" /ve /d "exefile" /f
+reg add "HKCR\exefile" /ve /d "Application" /f
+reg add "HKCR\exefile\shell\open\command" /ve /d '"%1" %*' /f
+'Association des fichiers .exe reparee.'
+'@
+
+$script:CmdRegFixLnk = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.lnk" (Join-Path $d "lnk-$stamp.reg") /y 2>$null
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.lnk\UserChoice" /f 2>$null
+reg add "HKCR\.lnk" /ve /d "lnkfile" /f
+'Associations de raccourcis .lnk reparees.'
+'@
+
+$script:CmdRegResetPolicies = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies" (Join-Path $d "policies-hkcu-$stamp.reg") /y 2>$null
+reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies" (Join-Path $d "policies-hklm-$stamp.reg") /y 2>$null
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies" /f 2>$null
+reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies" /f 2>$null
+reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Software Restriction Policies" /f 2>$null
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers" /f 2>$null
+gpupdate /force 2>$null
+'Toutes les strategies ont ete supprimees (restrictions malware, blocages CMD/exe/registre).'
+'@
+
+$script:CmdRegFixWU = @'
+$d = Join-Path $env:USERPROFILE 'Documents\WindowsToolbox-RegBackup'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$stamp = Get-Date -Format 'yyyyMMdd-HHmm'
+reg export "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" (Join-Path $d "windowsupdate-$stamp.reg") /y 2>$null
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" /f 2>$null
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /f 2>$null
+sc.exe config wuauserv start= demand 2>$null
+'Windows Update debloque (strategies de blocage supprimees, service reactif).'
+'@
+
+$script:CmdRegFixIcons = @'
+ie4uinit.exe -show
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+Remove-Item "$env:LOCALAPPDATA\IconCache.db" -Force -ErrorAction SilentlyContinue
+Remove-Item "$env:LOCALAPPDATA\Microsoft\Windows\Explorer\iconcache_*.db" -Force -ErrorAction SilentlyContinue
+if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }
+'Cache d''icones reconstruit (bureau et barre des taches relances).'
+'@
+
+$script:CmdBiosInfo = @'
+'Mode firmware : ' + $env:firmware_type
+try { 'Secure Boot  : ' + (Confirm-SecureBootUEFI) } catch { 'Secure Boot  : non lisible (mode Legacy, ou fonction non geree par ce PC)' }
+try {
+  $t = Get-Tpm
+  'TPM          : present = ' + $t.TpmPresent + ', pret = ' + $t.TpmReady
+} catch { 'TPM          : non lisible' }
+'@
+
+$script:CmdBiosReset = @'
+Write-Host '=== REINITIALISATION DU BIOS/UEFI — GUIDE INTEGRE ===' -ForegroundColor Cyan
+''
+'Un vrai reset BIOS ne peut pas etre ecrit directement depuis Windows (protege par le'
+'firmware) : notre outil te redemarre DANS le BIOS, ou tu appliques les valeurs d''usure :'
+''
+'  1. Le PC redemarre tout seul dans l''interface BIOS/UEFI (dans ~20 secondes).'
+'  2. Cherche « Load Setup Defaults » / « Load Optimized Defaults » / « Reset to Default »'
+'     (souvent touche F9, ou dans l''onglet Exit).'
+'  3. Confirme, puis « Save & Exit » (souvent F10).'
+'  4. Mot de passe BIOS : il se retire dans l''onglet Security SI tu le connais ;'
+'     sinon c''est un reset materiel (jumper CLR_CMOS / pile) — impossible depuis Windows.'
+''
+'ANNULER le redemarrage : tape shutdown /a (Démarrer > taper shutdown /a) avant 20 s.'
+''
+shutdown /r /fw /t 20 /c "Redemarrage vers le BIOS/UEFI dans 20 s - shutdown /a pour annuler"
+'Redemarrage programme dans 20 secondes…'
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -1476,6 +1604,24 @@ function Show-Toolbox {
     Add-CmdButton $tabWin 'Restauration du système' -Kind 'Gui' -Target 'rstrui.exe'
     Add-CmdButton $tabWin 'Applications au démarrage' -Kind 'Gui' -Target 'ms-settings:startupapps'
     Add-CmdButton $tabWin 'Stockage / Assistant de nettoyage' -Kind 'Gui' -Target 'ms-settings:storagesense'
+
+    Add-Section $tabWin 'Corrections du registre (sauvegarde automatique avant chaque correction)'
+    Add-CmdButton $tabWin 'Point de restauration avant corrections (admin)' -Kind 'Elevated' -Script $script:CmdRestorePoint -Desc 'Filet de sécurité supplémentaire (limite : 1 par 24 h)'
+    Add-CmdButton $tabWin 'Réactiver le Gestionnaire des tâches (admin)' -Kind 'Elevated' -Script $script:CmdRegFixTaskMgr -Desc 'Fixe « Le Gestionnaire des tâches a été désactivé par votre administrateur »'
+    Add-CmdButton $tabWin 'Réactiver l''invite de commandes CMD (admin)' -Kind 'Elevated' -Script $script:CmdRegFixCmd -Desc 'Fixe « L''invite de commandes a été désactivée »'
+    Add-CmdButton $tabWin 'Réactiver l''Éditeur du registre (admin)' -Kind 'Elevated' -Script $script:CmdRegFixRegedit -Desc 'Fixe « La modification du registre a été désactivée »'
+    Add-CmdButton $tabWin 'Réactiver le Panneau de configuration & Paramètres (admin)' -Kind 'Elevated' -Script $script:CmdRegFixControl
+    Add-CmdButton $tabWin 'Réparer l''ouverture des fichiers .exe (admin)' -Kind 'Elevated' -Script $script:CmdRegFixExe -Desc 'Quand « Windows ne peut pas ouvrir ce fichier » pour tous les programmes'
+    Add-CmdButton $tabWin 'Réparer les raccourcis .lnk qui ne s''ouvrent plus (admin)' -Kind 'Elevated' -Script $script:CmdRegFixLnk
+    Add-CmdButton $tabWin 'Réinitialiser TOUTES les stratégies (restrictions malware) (admin)' -Kind 'Elevated' -Script $script:CmdRegResetPolicies -Desc 'Supprime les blocages imposés par des malwares — retire aussi les stratégies d''entreprise'
+    Add-CmdButton $tabWin 'Débloquer Windows Update (admin)' -Kind 'Elevated' -Script $script:CmdRegFixWU -Desc 'Supprime les stratégies qui désactivent les mises à jour'
+    Add-CmdButton $tabWin 'Réparer le cache des icônes du bureau' -Script $script:CmdRegFixIcons -Desc 'Icônes blanches ou corrompues — relance l''Explorateur'
+
+    Add-Section $tabWin 'BIOS / UEFI'
+    Add-CmdButton $tabWin 'UEFI ou Legacy ? Secure Boot ? TPM ? (admin)' -Kind 'Elevated' -Script $script:CmdBiosInfo
+    Add-CmdButton $tabWin 'Redémarrer directement dans le BIOS/UEFI (admin)' -Kind 'GuiElevated' -Target 'shutdown.exe' -TargetArgs '/r /fw /t 0' -Desc 'Sauvegarde tes documents — nécessite un PC démarré en mode UEFI'
+    Add-CmdButton $tabWin 'Réinitialiser les réglages BIOS/UEFI — guide + redémarrage (admin)' -Kind 'Elevated' -Script $script:CmdBiosReset -Desc 'Te démarre dans le BIOS et t''affiche le pas-à-pas pour remettre les valeurs d''usine (F9/F10)'
+    Add-CmdButton $tabWin 'Effacer la puce TPM — DÉFINITIF (admin)' -Kind 'Elevated' -Script 'Clear-Tpm' -Desc 'Réinitialise la puce de sécurité — attention si BitLocker sans clé sauvegardée !'
 
     Add-Section $tabWin 'Mises à jour logicielles (winget)'
     Add-CmdButton $tabWin 'Lister les mises à jour disponibles (winget upgrade)' -Script $script:CmdWinget
