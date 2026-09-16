@@ -57,6 +57,8 @@
 
 **Options** (onglet 🚀 Raccourcis, persistées dans le registre) : réduire dans le systray · raccourci global on/off · **démarrer avec Windows**.
 
+**🛡️ God Mode & dossiers secrets** (onglet 🚀 Raccourcis) : ouvre le fameux **God Mode** (250+ outils Windows dans une seule liste), crée/supprime le dossier `God Mode` sur ton Bureau, ou déploie un pack de **10 dossiers secrets** (outils d'administration, options d'alimentation, son, centre réseau, système, polices…) — et les retire aussi proprement.
+
 **Code couleur** : bordure bleue = commande ici · orange = admin (UAC, console séparée) · blanc = outil intégré · bleu clair = site web.
 
 ## 🔧 Corrections du registre Windows

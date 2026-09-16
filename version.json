@@ -1,6 +1,6 @@
 {
-    "version":  "2.2.0",
+    "version":  "2.3.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "DA8E0327F41C73CF015CFF0C237FA9E7D48E47ABF9B30EFC6EB86D4039435788",
-    "notes":  "v2.2 : tests PC portable - ecran Hz + modes supportes, dalle, retro-eclairage, consommation batterie W, puissance chargeur, touchpad."
+    "sha256":  "FC06063B30E049752E38601969B1A56F330275818DA9F1EEA64361498CDD1708",
+    "notes":  "v2.3 : God Mode - ouverture directe, creation du dossier sur le Bureau, pack de 10 dossiers secrets."
 }

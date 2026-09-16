@@ -19,7 +19,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.2.0'
+$script:ToolboxVersion = '2.3.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -1369,6 +1369,77 @@ Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.Fri
 '→ Test manuel : déplacement du curseur, clic gauche/droit, tap, geste à 2 doigts.'
 '@
 
+# ---------------- God Mode & dossiers secrets (v2.3) ----------------
+
+$script:GodList = @(
+    @{ N = 'God Mode';                    G = '{ED7BA470-8E54-465E-825C-99712043E01C}' }
+    @{ N = 'Outils d''administration';    G = '{D20EA4E1-3957-11d2-A40B-0C5020524152}' }
+    @{ N = 'Options d''alimentation';     G = '{025A5937-A6BE-4686-A844-36FE4BEC8B6D}' }
+    @{ N = 'Son';                         G = '{F2DDFC82-8F12-4CDD-B7DC-D4FE1425AA4D}' }
+    @{ N = 'Centre Reseau et partage';    G = '{8E908FC9-BECC-40f6-915B-F4CA0E70D03D}' }
+    @{ N = 'Systeme';                     G = '{BB06C0E4-D293-4f75-8A90-CB05528E4291}' }
+    @{ N = 'Lecture automatique';         G = '{9C60DE1E-E5FC-40f4-A487-460851A8D915}' }
+    @{ N = 'Programmes et fonctionnalites'; G = '{7B81BE6A-CE44-4676-8E77-EE30BCB0F60C}' }
+    @{ N = 'Polices';                     G = '{D20EA4E1-3957-11d2-A40B-0C5020524153}' }
+    @{ N = 'Zone de notification';        G = '{05d7b0f4-2121-4eff-bf6b-ed3f69b894d9}' }
+)
+
+$script:CmdGodCreate = @'
+$g = Join-Path ([Environment]::GetFolderPath('Desktop')) 'God Mode.{ED7BA470-8E54-465E-825C-99712043E01C}'
+New-Item -ItemType Directory -Path $g -Force | Out-Null
+'Dossier « God Mode » cree sur le Bureau — ouvre-le : 250+ outils Windows au meme endroit.'
+'@
+
+$script:CmdGodRemove = @'
+$g = Join-Path ([Environment]::GetFolderPath('Desktop')) 'God Mode.{ED7BA470-8E54-465E-825C-99712043E01C}'
+if (Test-Path -LiteralPath $g) { Remove-Item -LiteralPath $g -Force; 'Dossier God Mode supprime du Bureau.' }
+else { 'Aucun dossier God Mode sur le Bureau.' }
+'@
+
+$script:CmdGodAllCreate = @'
+$desk = [Environment]::GetFolderPath('Desktop')
+$items = @(
+    @{ N = 'God Mode';                    G = '{ED7BA470-8E54-465E-825C-99712043E01C}' }
+    @{ N = 'Outils administration';       G = '{D20EA4E1-3957-11d2-A40B-0C5020524152}' }
+    @{ N = 'Options alimentation';        G = '{025A5937-A6BE-4686-A844-36FE4BEC8B6D}' }
+    @{ N = 'Son';                         G = '{F2DDFC82-8F12-4CDD-B7DC-D4FE1425AA4D}' }
+    @{ N = 'Centre Reseau et partage';    G = '{8E908FC9-BECC-40f6-915B-F4CA0E70D03D}' }
+    @{ N = 'Systeme';                     G = '{BB06C0E4-D293-4f75-8A90-CB05528E4291}' }
+    @{ N = 'Lecture automatique';         G = '{9C60DE1E-E5FC-40f4-A487-460851A8D915}' }
+    @{ N = 'Programmes et fonctionnalites'; G = '{7B81BE6A-CE44-4676-8E77-EE30BCB0F60C}' }
+    @{ N = 'Polices';                     G = '{D20EA4E1-3957-11d2-A40B-0C5020524153}' }
+    @{ N = 'Zone de notification';        G = '{05d7b0f4-2121-4eff-bf6b-ed3f69b894d9}' }
+)
+foreach ($i in $items) {
+    $p = Join-Path $desk ($i.N + '.' + $i.G)
+    New-Item -ItemType Directory -Path $p -Force | Out-Null
+    'Cree : ' + $i.N
+}
+'→ Regarde ton Bureau : chaque dossier cache une page de reglages Windows.'
+'@
+
+$script:CmdGodAllRemove = @'
+$desk = [Environment]::GetFolderPath('Desktop')
+$items = @(
+    @{ N = 'God Mode';                    G = '{ED7BA470-8E54-465E-825C-99712043E01C}' }
+    @{ N = 'Outils administration';       G = '{D20EA4E1-3957-11d2-A40B-0C5020524152}' }
+    @{ N = 'Options alimentation';        G = '{025A5937-A6BE-4686-A844-36FE4BEC8B6D}' }
+    @{ N = 'Son';                         G = '{F2DDFC82-8F12-4CDD-B7DC-D4FE1425AA4D}' }
+    @{ N = 'Centre Reseau et partage';    G = '{8E908FC9-BECC-40f6-915B-F4CA0E70D03D}' }
+    @{ N = 'Systeme';                     G = '{BB06C0E4-D293-4f75-8A90-CB05528E4291}' }
+    @{ N = 'Lecture automatique';         G = '{9C60DE1E-E5FC-40f4-A487-460851A8D915}' }
+    @{ N = 'Programmes et fonctionnalites'; G = '{7B81BE6A-CE44-4676-8E77-EE30BCB0F60C}' }
+    @{ N = 'Polices';                     G = '{D20EA4E1-3957-11d2-A40B-0C5020524153}' }
+    @{ N = 'Zone de notification';        G = '{05d7b0f4-2121-4eff-bf6b-ed3f69b894d9}' }
+)
+$n = 0
+foreach ($i in $items) {
+    $p = Join-Path $desk ($i.N + '.' + $i.G)
+    if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force; $n++ }
+}
+"$n dossier(s) secrets supprimes du Bureau."
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -1975,6 +2046,17 @@ function Show-Toolbox {
     Add-CmdButton $tabQuick 'Mise en veille' -Kind 'Gui' -Target 'rundll32.exe' -TargetArgs 'powrprof.dll,SetSuspendState 0,1,0' -Desc 'Si l''hibernation est activée, met en hibernation'
     Add-CmdButton $tabQuick '⚠ Redémarrer le PC maintenant' -Kind 'Gui' -Target 'shutdown.exe' -TargetArgs '/r /t 0' -Desc 'Sauvegarde tes documents avant de cliquer !'
     Add-CmdButton $tabQuick '⚠ Éteindre le PC maintenant' -Kind 'Gui' -Target 'shutdown.exe' -TargetArgs '/s /t 0' -Desc 'Sauvegarde tes documents avant de cliquer !'
+
+    Add-Section $tabQuick 'God Mode & dossiers secrets'
+    Add-CmdButton $tabQuick 'Ouvrir le GOD MODE maintenant (250+ outils Windows)' -Kind 'Gui' -Target 'shell:::{ED7BA470-8E54-465E-825C-99712043E01C}' -Desc 'Toutes les tâches et réglages de Windows dans une seule liste'
+    Add-CmdButton $tabQuick 'Créer le dossier God Mode sur le Bureau' -Script $script:CmdGodCreate -Desc 'Un dossier « God Mode » apparaît sur ton Bureau'
+    Add-CmdButton $tabQuick 'Supprimer le dossier God Mode du Bureau' -Script $script:CmdGodRemove
+    Add-CmdButton $tabQuick 'Créer les 10 dossiers secrets (God Mode + outils)' -Script $script:CmdGodAllCreate -Desc 'God Mode + administration, alimentation, son, réseau, système… sur le Bureau'
+    Add-CmdButton $tabQuick 'Supprimer les 10 dossiers secrets' -Script $script:CmdGodAllRemove
+    Add-CmdButton $tabQuick 'Ouvrir : Outils d''administration' -Kind 'Gui' -Target 'shell:::{D20EA4E1-3957-11d2-A40B-0C5020524152}'
+    Add-CmdButton $tabQuick 'Ouvrir : Options d''alimentation' -Kind 'Gui' -Target 'shell:::{025A5937-A6BE-4686-A844-36FE4BEC8B6D}'
+    Add-CmdButton $tabQuick 'Ouvrir : Son' -Kind 'Gui' -Target 'shell:::{F2DDFC82-8F12-4CDD-B7DC-D4FE1425AA4D}'
+    Add-CmdButton $tabQuick 'Ouvrir : Centre Réseau et partage' -Kind 'Gui' -Target 'shell:::{8E908FC9-BECC-40f6-915B-F4CA0E70D03D}'
 
     Add-Section $tabQuick 'Options de l''application'
     function Add-OptionCheck {
