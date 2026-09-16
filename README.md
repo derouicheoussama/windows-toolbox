@@ -29,6 +29,17 @@
 
 **Prérequis** : Windows 10/11, PowerShell 5.1 (inclus par défaut). Rien d'autre.
 
+### 📦 Installation (optionnelle)
+
+Double-clic sur **`Installer-Toolbox.ps1`** (ou clic droit → *Exécuter avec PowerShell*) :
+
+- Copie l'application dans `%LOCALAPPDATA%\Programs\WindowsToolbox`
+- Raccourcis **Menu Démarrer + Bureau** (icône bouclier)
+- Entrée **« Windows 11 Toolbox »** dans *Applications & fonctionnalités* avec **Désinstaller** propre
+- Les **mises à jour à distance continuent de fonctionner** sur la copie installée
+
+Désinstallation : *Paramètres → Applications*, le raccourci « Desinstaller » du Menu Démarrer, ou `.\Installer-Toolbox.ps1 -Uninstall`.
+
 À l'ouverture : **inventaire automatique** (PC, SSD, santé) dans la console, puis vérification silencieuse des mises à jour.
 
 ## 🗂 Les 10 onglets
