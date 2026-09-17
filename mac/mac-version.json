@@ -1,0 +1,6 @@
+{
+    "version":  "1.0.0",
+    "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/mac/Mac-Toolbox.command",
+    "sha256":  "5A468C47305EEED83D5815542CD5808934B227CDF52C3A44A68F8C456ED5DF4A",
+    "notes":  "Version initiale Mac : infos systeme, disques, batterie, ecran, reseau, maj macOS, nettoyage, Homebrew, achat Mac, securite, raccourcis."
+}
