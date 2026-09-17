@@ -19,7 +19,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.3.0'
+$script:ToolboxVersion = '2.4.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -284,7 +284,7 @@ function Start-GuiTarget {
 }
 
 function Start-InlineCommand {
-    param([string]$Title, [string]$Script)
+    param([string]$Title, [string]$Script, [switch]$Stream)
     if ($script:Busy) { Set-Status '⏳ Une commande est déjà en cours, patiente…'; return }
     $script:Busy = $true
     Set-Status ("⏳ Exécution : {0} …" -f $Title)
@@ -294,7 +294,12 @@ function Start-InlineCommand {
     $ps.Runspace.SessionStateProxy.SetVariable('q', $sync.Queue)
     $ps.Runspace.SessionStateProxy.SetVariable('sc', $script:SmartCtl)
     $ps.Runspace.SessionStateProxy.SetVariable('sd', $script:ScriptDir)
-    $null = $ps.AddScript('param($code) try { $out = Invoke-Expression -Command $code 2>&1 | Out-String -Width 200; if (-not [string]::IsNullOrWhiteSpace($out)) { $out.TrimEnd() -split "`r?`n" | ForEach-Object { $q.Enqueue($_) } } else { $q.Enqueue("(aucune sortie)") } } catch { $q.Enqueue("[ERREUR] " + $_.Exception.Message) }')
+    if ($Stream) {
+        # Mode flux : chaque ligne s'affiche en direct dans la console (longues commandes type winget)
+        $null = $ps.AddScript('param($code) try { Invoke-Expression -Command $code 2>&1 | ForEach-Object { $line = ([string]$_) -replace "`r", ""; if ($line.Trim().Length -gt 0) { $q.Enqueue($line) } } } catch { $q.Enqueue("[ERREUR] " + $_.Exception.Message) }')
+    } else {
+        $null = $ps.AddScript('param($code) try { $out = Invoke-Expression -Command $code 2>&1 | Out-String -Width 200; if (-not [string]::IsNullOrWhiteSpace($out)) { $out.TrimEnd() -split "`r?`n" | ForEach-Object { $q.Enqueue($_) } } else { $q.Enqueue("(aucune sortie)") } } catch { $q.Enqueue("[ERREUR] " + $_.Exception.Message) }')
+    }
     $null = $ps.AddArgument($Script)
     $script:PS     = $ps
     $script:Handle = $ps.BeginInvoke()
@@ -755,6 +760,41 @@ if (Test-Path "$env:TEMP\toolbox-gpo.html") { Start-Process "$env:TEMP\toolbox-g
 '@
 
 # ---------------- Nettoyage & rapidité ----------------
+
+$script:CmdCleanAll = @'
+$total = 0
+'=== NETTOYAGE COMPLET EN 1 CLIC (sans risque) ==='
+''
+'--- 1/4 Temp utilisateur ---'
+$b = (Get-ChildItem $env:TEMP -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+Get-ChildItem $env:TEMP -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+$a = (Get-ChildItem $env:TEMP -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+$f = [math]::Max(0, $b - $a); $total += $f
+'{0:N1} Mo liberes' -f ($f/1MB)
+'--- 2/4 Vignettes (thumbcache) ---'
+$vd = "$env:LOCALAPPDATA\Microsoft\Windows\Explorer"
+$b = (Get-ChildItem $vd -Filter 'thumbcache*.db' -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+Get-ChildItem $vd -Filter 'thumbcache*.db' -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+$a = (Get-ChildItem $vd -Filter 'thumbcache*.db' -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+$f = [math]::Max(0, $b - $a); $total += $f
+'{0:N1} Mo liberes' -f ($f/1MB)
+'--- 3/4 Rapports d''erreurs (WER) ---'
+$wd = "$env:LOCALAPPDATA\Microsoft\Windows\WER"
+$b = (Get-ChildItem $wd -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+Get-ChildItem $wd -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+$a = (Get-ChildItem $wd -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+$f = [math]::Max(0, $b - $a); $total += $f
+'{0:N1} Mo liberes' -f ($f/1MB)
+'--- 4/4 Corbeille (C:) ---'
+$rb = (Get-ChildItem 'C:\$Recycle.Bin' -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+Clear-RecycleBin -DriveLetter C -Force -ErrorAction SilentlyContinue
+$rb2 = (Get-ChildItem 'C:\$Recycle.Bin' -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+$f = [math]::Max(0, $rb - $rb2); $total += $f
+'{0:N1} Mo liberes' -f ($f/1MB)
+''
+('=== TOTAL LIBERE : {0:N1} Mo ===' -f ($total/1MB))
+'→ Les zones admin (Temp Windows, cache Windows Update, Delivery Optimization) ont leurs boutons orange ci-dessous.'
+'@
 
 $script:CmdCleanMeasure = @'
 function Mesure([string]$p) {
@@ -1691,7 +1731,7 @@ function Show-Toolbox {
     }
 
     function Add-CmdButton {
-        param($Parent, [string]$Text, [string]$Kind = 'Inline', [string]$Script = '', [string]$Target = '', [string]$TargetArgs = '', [string]$Desc = '')
+        param($Parent, [string]$Text, [string]$Kind = 'Inline', [string]$Script = '', [string]$Target = '', [string]$TargetArgs = '', [string]$Desc = '', [switch]$Stream)
         $b = New-Object Windows.Forms.Button
         $b.Text = $Text
         $b.Size = New-Object Drawing.Size(460, 42)
@@ -1726,7 +1766,7 @@ function Show-Toolbox {
         if ($Desc) { $script:Tooltip.SetToolTip($b, $Desc) }
         $b.Add_Click({
             switch ($Kind) {
-                'Inline'      { if ($Script) { Start-InlineCommand -Title $Text -Script $Script } }
+                'Inline'      { if ($Script) { Start-InlineCommand -Title $Text -Script $Script -Stream:$Stream } }
                 'Elevated'    { if ($Script) { Start-ElevatedCommand -Title $Text -Script $Script } }
                 'Gui'         { Start-GuiTarget -Target $Target -TargetArgs $TargetArgs }
                 'GuiElevated' { Start-GuiTarget -Target $Target -Elevated }
@@ -1845,7 +1885,8 @@ function Show-Toolbox {
 
     Add-Section $tabWin 'Mises à jour logicielles (winget)'
     Add-CmdButton $tabWin 'Lister les mises à jour disponibles (winget upgrade)' -Script $script:CmdWinget
-    Add-CmdButton $tabWin 'Tout mettre à jour (winget upgrade --all) (admin)' -Kind 'Elevated' -Script 'winget upgrade --all --accept-source-agreements --accept-package-agreements --disable-interactivity'
+    Add-CmdButton $tabWin 'Mettre à jour TOUT — rapport en direct (~10-30 min)' -Stream -Script 'winget upgrade --all --accept-source-agreements --accept-package-agreements --disable-interactivity' -Desc 'Le rapport s''affiche ligne par ligne dans la console ; UAC possible pour certains logiciels'
+    Add-CmdButton $tabWin 'Actualiser les sources winget' -Script 'winget source update --accept-source-agreements; winget source list'
 
     Add-Section $tabWin 'Terminaux'
     Add-CmdButton $tabWin 'Invite de commandes (cmd)' -Kind 'Gui' -Target 'cmd.exe'
@@ -1931,6 +1972,7 @@ function Show-Toolbox {
 
     # ================= Onglet Nettoyage & rapidité =================
     Add-Section $tabClean 'Analyse — avant de nettoyer'
+    Add-CmdButton $tabClean 'NETTOYAGE COMPLET EN 1 CLIC — rapport en direct' -Stream -Script $script:CmdCleanAll -Desc 'Chaîne tous les nettoyages sans risque (TEMP, vignettes, WER, corbeille) et affiche le total libéré'
     Add-CmdButton $tabClean 'AUDIT EXPRESS du PC (lecture seule, ~30 s)' -Script $script:CmdAudit -Desc 'Espace disque, santé SSD, RAM, erreurs, temps de démarrage — verdict en un coup d''œil'
     Add-CmdButton $tabClean 'Mesurer : fichiers temporaires & caches (lecture seule)' -Script $script:CmdCleanMeasure -Desc 'Taille de chaque zone nettoyable avant d''agir'
     Add-CmdButton $tabClean 'Top 20 des plus gros fichiers de ton profil' -Script $script:CmdBigFiles -Desc 'Trouve ce qui remplit le disque (30-60 s)'

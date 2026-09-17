@@ -1,6 +1,6 @@
 {
-    "version":  "2.3.0",
+    "version":  "2.4.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "FC06063B30E049752E38601969B1A56F330275818DA9F1EEA64361498CDD1708",
-    "notes":  "v2.3 : God Mode - ouverture directe, creation du dossier sur le Bureau, pack de 10 dossiers secrets."
+    "sha256":  "95EB015DB85CE8FB7E63E808A41EE66CA8B47A8356BC29027997E13860963F77",
+    "notes":  "v2.4 : winget upgrade --all avec rapport en direct dans la console, actualisation des sources, nettoyage complet en 1 clic avec total libere."
 }
