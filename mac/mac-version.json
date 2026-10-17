@@ -1,6 +1,6 @@
 {
-    "version":  "1.0.0",
+    "version":  "1.1.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/mac/Mac-Toolbox.command",
-    "sha256":  "5A468C47305EEED83D5815542CD5808934B227CDF52C3A44A68F8C456ED5DF4A",
-    "notes":  "Version initiale Mac : infos systeme, disques, batterie, ecran, reseau, maj macOS, nettoyage, Homebrew, achat Mac, securite, raccourcis."
+    "sha256":  "04962D4A8E2A3BE5593A5BF8B5B0FBF30FF09EC497B4040997E080D599941C92",
+    "notes":  "v1.1 : materiel complet - carte mere, RAM, disques, ecran, audio, USB, reseau, imprimantes (system_profiler)."
 }

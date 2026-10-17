@@ -1,6 +1,6 @@
 {
-    "version":  "2.4.0",
+    "version":  "2.5.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "95EB015DB85CE8FB7E63E808A41EE66CA8B47A8356BC29027997E13860963F77",
-    "notes":  "v2.4 : winget upgrade --all avec rapport en direct dans la console, actualisation des sources, nettoyage complet en 1 clic avec total libere."
+    "sha256":  "E4F0278BBF5D83A6B89F55D89D2B0CFED446CAA801F24177A16CE3E3BA14F1E7",
+    "notes":  "v2.5 : detection materielle complete - carte mere, BIOS, RAM avec slots libres, GPU, disques, reseau, audio, USB, batterie, ecrans."
 }

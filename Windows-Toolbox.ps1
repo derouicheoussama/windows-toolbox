@@ -19,7 +19,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.4.0'
+$script:ToolboxVersion = '2.5.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -1480,6 +1480,103 @@ foreach ($i in $items) {
 "$n dossier(s) secrets supprimes du Bureau."
 '@
 
+# ---------------- Détection du matériel (v2.5) ----------------
+
+$script:CmdHwFull = @'
+'========== INVENTAIRE MATÉRIEL COMPLET =========='
+''
+'--- CARTE MÈRE & BIOS ---'
+$bb = Get-CimInstance Win32_BaseBoard
+'Fabricant : {0}' -f $bb.Manufacturer
+'Modèle    : {0} (version {1})' -f $bb.Product, $bb.Version
+$bios = Get-CimInstance Win32_BIOS
+'Bios      : {0} — {1} ({2:yyyy-MM-dd})' -f $bios.Manufacturer, $bios.SMBIOSBIOSVersion, $bios.ReleaseDate
+'Mode firmware : {0}' -f $env:firmware_type
+''
+'--- PROCESSEUR ---'
+Get-CimInstance Win32_Processor | ForEach-Object {
+  $_.Name.Trim()
+  '{0} cœurs physiques / {1} logiques — {2:N2} GHz — socket {3}' -f $_.NumberOfCores, $_.NumberOfLogicalProcessors, ($_.MaxClockSpeed/1000), $_.SocketDesignation
+  'Cache L2 {0} Ko · L3 {1} Ko' -f $_.L2CacheSize, $_.L3CacheSize
+}
+''
+'--- MÉMOIRE RAM ---'
+$arr = Get-CimInstance Win32_PhysicalMemoryArray
+$total = 0
+Get-CimInstance Win32_PhysicalMemory | ForEach-Object {
+  $total++
+  '{0} : {1:N0} Go — {2} MT/s — {3} — {4}' -f $_.DeviceLocator, ($_.Capacity/1GB), $_.ConfiguredClockSpeed, $_.Manufacturer, $_.PartNumber.Trim()
+}
+$slots = ($arr | Measure-Object -Property MemoryDevices -Sum).Sum
+'Slots : {0} occupés / {1} au total — {2} libre(s)' -f $total, $slots, ($slots - $total)
+''
+'--- CARTE GRAPHIQUE ---'
+Get-CimInstance Win32_VideoController | ForEach-Object {
+  $name = $_.Name
+  $ram = $_.AdapterRAM
+  try {
+    $k = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction Stop | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DriverDesc -eq $name } | Select-Object -First 1
+    $q = (Get-ItemProperty $k.PSPath -ErrorAction SilentlyContinue).'HardwareInformation.qwMemorySize'
+    if ($q) { $ram = $q }
+  } catch { }
+  '{0} — {1:N0} Mo — pilote {2} ({3:yyyy-MM-dd})' -f $name, ($ram/1MB), $_.DriverVersion, $_.DriverDate
+  'Résolution : {0} x {1} @ {2} Hz' -f $_.CurrentHorizontalResolution, $_.CurrentVerticalResolution, $_.CurrentRefreshRate
+}
+''
+'--- DISQUES ---'
+Get-PhysicalDisk | ForEach-Object { '{0} — {1:N0} Go — {2} — {3} — santé {4}' -f $_.FriendlyName, ($_.Size/1GB), $_.MediaType, $_.BusType, $_.HealthStatus }
+''
+'--- RÉSEAU ---'
+Get-NetAdapter | Format-Table Name, InterfaceDescription, Status, LinkSpeed, MacAddress -AutoSize
+''
+'--- AUDIO ---'
+Get-CimInstance Win32_SoundDevice | ForEach-Object { 'Son : {0}' -f $_.Name }
+''
+'--- USB ---'
+'{0} périphérique(s) USB actif(s)' -f @(Get-PnpDevice -Class USB -PresentOnly -ErrorAction SilentlyContinue).Count
+''
+'--- BATTERIE ---'
+$bat = Get-CimInstance Win32_Battery
+if ($bat) { '{0} % — statut {1}' -f $bat.EstimatedChargeRemaining, $bat.BatteryStatus } else { 'Aucune (PC fixe).' }
+''
+'--- ÉCRAN(S) ---'
+try {
+  Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID -ErrorAction Stop | ForEach-Object {
+    $n = (($_.UserFriendlyName | Where-Object { $_ -ne 0 } | ForEach-Object { [char]$_ }) -join '')
+    'Écran : {0} (année {1})' -f $n, $_.YearOfManufacture
+  }
+} catch { 'Écrans : non exposés via WMI.' }
+'@
+
+$script:CmdMotherboard = @'
+$bb = Get-CimInstance Win32_BaseBoard
+$cs = Get-CimInstance Win32_ComputerSystemProduct
+$bio = Get-CimInstance Win32_BIOS
+'Fabricant carte mère : {0}' -f $bb.Manufacturer
+'Modèle               : {0} — version {1}' -f $bb.Product, $bb.Version
+'Bios                 : {0} — version {1} ({2:yyyy-MM-dd})' -f $bio.Manufacturer, $bio.SMBIOSBIOSVersion, $bio.ReleaseDate
+'Mode firmware        : {0}' -f $env:firmware_type
+'Produit système      : {0} {1}' -f $cs.Name, $cs.Version
+'UUID                 : {0}' -f $cs.UUID
+''
+'→ La mise à jour du BIOS se fait via le site du fabricant ({0}).' -f $bb.Manufacturer
+'@
+
+$script:CmdRamSlots = @'
+$arr = Get-CimInstance Win32_PhysicalMemoryArray
+$slots = ($arr | Measure-Object -Property MemoryDevices -Sum).Sum
+$sticks = @(Get-CimInstance Win32_PhysicalMemory)
+'Slots mémoire : {0} au total — {1} occupé(s) — {2} LIBRE(S)' -f $slots, @($sticks).Count, ($slots - @($sticks).Count)
+''
+$sticks | ForEach-Object {
+  '{0} : {1:N0} Go — configurée {2} MT/s (max {3}) — {4} — {5}' -f $_.DeviceLocator, ($_.Capacity/1GB), $_.ConfiguredClockSpeed, $_.Speed, $_.Manufacturer, $_.PartNumber.Trim()
+}
+''
+'{0:N1} Go de RAM totale installée' -f ((($sticks | Measure-Object -Property Capacity -Sum).Sum)/1GB)
+''
+'→ Slots libres = emplacements physiques vides : tu peux ajouter des barrettes sans rien remplacer.'
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -1785,6 +1882,11 @@ function Show-Toolbox {
     Add-CmdButton $tabSystem 'Informations système (msinfo32)' -Kind 'Gui' -Target 'msinfo32.exe'
     Add-CmdButton $tabSystem 'Diagnostic DirectX (dxdiag)' -Kind 'Gui' -Target 'dxdiag.exe'
     Add-CmdButton $tabSystem 'Licence & activation Windows (slmgr /xpr)' -Script $script:CmdLicense
+
+    Add-Section $tabSystem 'Détection du matériel'
+    Add-CmdButton $tabSystem 'Inventaire matériel COMPLET (carte mère, RAM, GPU…)' -Script $script:CmdHwFull -Desc 'Carte mère, BIOS, CPU, RAM + slots libres, GPU, disques, réseau, audio, USB, batterie, écrans'
+    Add-CmdButton $tabSystem 'Carte mère & BIOS (modèle, version, UUID)' -Script $script:CmdMotherboard
+    Add-CmdButton $tabSystem 'RAM : barrettes & slots libres' -Script $script:CmdRamSlots -Desc 'Sait combien d''emplacements physiques sont encore libres'
 
     Add-Section $tabSystem 'Réparation & intégrité (admin)'
     Add-CmdButton $tabSystem 'SFC — vérifier les fichiers système (sfc /scannow)' -Kind 'Elevated' -Script 'sfc /scannow' -Desc 'Répare les fichiers système corrompus (~10 min)'

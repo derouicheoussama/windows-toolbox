@@ -8,7 +8,7 @@
 #  Aucune installation. Certaines actions demandent le mot de passe (sudo).
 # =================================================================
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 MANIFEST_URL="https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/mac/mac-version.json"
 SCRIPT_URL="https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/mac/Mac-Toolbox.command"
 
@@ -216,6 +216,36 @@ processus() {
     pause
 }
 
+materiel() {
+    section "MATÉRIEL COMPLET (detection peripheriques)"
+    echo "=== CARTE MÈRE / MACHINE ==="
+    system_profiler SPHardwareDataType 2>/dev/null
+    echo ""
+    echo "=== MÉMOIRE RAM ==="
+    system_profiler SPMemoryDataType 2>/dev/null || echo "(RAM soudée sur cette machine — non listable)"
+    echo ""
+    echo "=== DISQUES / NVMe / SATA ==="
+    system_profiler SPNVMeDataType 2>/dev/null
+    system_profiler SPSerialATADataType 2>/dev/null | head -20
+    echo ""
+    echo "=== GRAPHIQUE & ÉCRAN ==="
+    system_profiler SPDisplaysDataType 2>/dev/null
+    echo ""
+    echo "=== AUDIO ==="
+    system_profiler SPAudioDataType 2>/dev/null | head -25
+    echo ""
+    echo "=== USB (périphériques branchés) ==="
+    system_profiler SPUSBDataType 2>/dev/null | grep -E "^\s{4,8}[A-Za-z]|Product ID|Vendor ID" | head -25
+    echo ""
+    echo "=== RÉSEAU (Wi-Fi, Ethernet, Bluetooth) ==="
+    system_profiler SPNetworkDataType 2>/dev/null | head -20
+    system_profiler SPBluetoothDataType 2>/dev/null | head -12
+    echo ""
+    echo "=== IMPRIMANTES ==="
+    system_profiler SPPrintersDataType 2>/dev/null | head -12
+    pause
+}
+
 reparations() {
     section "RÉPARATIONS"
     read -r -p "Vérifier puis réparer le volume système (sudo, ~2 min) ? [o/N] : " ok
@@ -319,6 +349,7 @@ show_menu() {
     echo -e "  ${BOLD} 5)${NC} Réseau (IP, ping, DNS)     ${BOLD}12)${NC} Sécurité (SIP, FileVault…)"
     echo -e "  ${BOLD} 6)${NC} Mises à jour macOS         ${BOLD}13)${NC} Raccourcis (apps, réglages)"
     echo -e "  ${BOLD} 7)${NC} Nettoyage (caches…)        ${BOLD}14)${NC} Mettre à jour la toolbox"
+    echo -e "  ${BOLD}15)${NC} Matériel complet (carte mère, RAM, USB…)"
     echo ""
     echo -e "  ${BOLD} 0)${NC} Quitter"
     echo ""
@@ -342,6 +373,7 @@ while true; do
         12) securite ;;
         13) raccourcis ;;
         14) self_update ;;
+        15) materiel ;;
         0) clear; echo "∞ Infinity Coder — merci !"; exit 0 ;;
         *) ;;
     esac
