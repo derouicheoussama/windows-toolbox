@@ -384,6 +384,11 @@ try {
 
 function Start-UpdateInstall {
     param([string]$Version, [string]$Url, [string]$Hash)
+    if ($PSCommandPath -like '*.exe') {
+        Append-Console '[MAJ] Version EXE : un exe en cours ne peut pas se remplacer — télécharge la nouvelle version depuis la page Releases du dépôt GitHub.'
+        Set-Status 'Mise à jour EXE : télécharge depuis GitHub Releases'
+        return
+    }
     if ($script:Busy) { return }
     $script:Busy = $true
     Set-Status ("⏳ Téléchargement de la version {0}…" -f $Version)

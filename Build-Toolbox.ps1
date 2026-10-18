@@ -69,13 +69,7 @@ if ($Exe) {
     $exe = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
     Write-Host ''
     Write-Host " Compilation en EXE (version $ver)…" -ForegroundColor Cyan
-    Invoke-PS2EXE -inputFile $scriptFile -outputFile $exe -noConsole `
-        -title 'Windows 11 Toolbox' `
-        -description 'Commandes Windows, tests SSD et diagnostics — ∞ Infinity Coder' `
-        -company 'Derouiche Oussama' `
-        -product 'Windows 11 Toolbox' `
-        -copyright '(c) Derouiche Oussama — ∞ Infinity Coder' `
-        -version $ver
+    Invoke-PS2EXE -inputFile $scriptFile -outputFile $exe -noConsole -title 'Windows 11 Toolbox' -description 'Commandes Windows, tests SSD et diagnostics - Infinity Coder' -company 'Derouiche Oussama' -product 'Windows 11 Toolbox' -copyright '(c) Derouiche Oussama - Infinity Coder' -version $ver
     if (Test-Path -LiteralPath $exe) {
         Write-Host (" EXE créé : " + $exe) -ForegroundColor Green
         if ($SignCert) { Invoke-SignFile -File $exe -Pfx $SignCert -Password $CertPassword }

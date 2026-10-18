@@ -1,5 +1,8 @@
 checksums.txt
 verification-achat-PC-*.txt
+verification-mac-*.txt
 *.new
+*.bak
 *.log
-tools/*.exe
+Windows-Toolbox.exe
+**/*.exe

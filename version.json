@@ -1,6 +1,6 @@
 {
     "version":  "2.5.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "E4F0278BBF5D83A6B89F55D89D2B0CFED446CAA801F24177A16CE3E3BA14F1E7",
+    "sha256":  "D00337036D27D64BB42E75F6396124CB9CEF688F6A339895336BB0B30C59E6AF",
     "notes":  "v2.5 : detection materielle complete - carte mere, BIOS, RAM avec slots libres, GPU, disques, reseau, audio, USB, batterie, ecrans."
 }

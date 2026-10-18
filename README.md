@@ -20,11 +20,22 @@
 
 ## 🚀 Démarrage rapide
 
-| Méthode | Action |
+### 📥 Téléchargement (clients)
+
+**Page Releases : [github.com/derouicheoussama/windows-toolbox/releases](https://github.com/derouicheoussama/windows-toolbox/releases)**
+
+| Fichier | Pour qui |
+|---|---|
+| **`Windows-Toolbox.exe`** | Double-clic et c'est tout — application compilée, aucune installation |
+| **`Setup-Toolbox.cmd`** | Installateur 1-fichier : télécharge la dernière version depuis GitHub, vérifie le SHA256, installe raccourcis + désinstalleur |
+| **`Mac-Toolbox.command`** | La version macOS (voir [mac/README-MAC.md](mac/README-MAC.md)) |
+
+| Méthode locale | Action |
 |---|---|
 | `Lancer-Toolbox.cmd` | **Double-clic** — aucun réglage requis (contourne ExecutionPolicy) |
 | `.\Windows-Toolbox.ps1 -Admin` | Lancement direct + élévation administrateur (UAC) |
 | `.\Windows-Toolbox.ps1 -List` | Inventaire console sans interface (disques, outils détectés) |
+| `.\Installer-Toolbox.ps1` / `-Uninstall` | Installation complète locale (raccourcis + désinstalleur) |
 | Clé USB | Copie le dossier entier, double-clique chez le vendeur ou un ami |
 
 **Prérequis** : Windows 10/11, PowerShell 5.1 (inclus par défaut). Rien d'autre.
