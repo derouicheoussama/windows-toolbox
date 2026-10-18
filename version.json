@@ -1,6 +1,6 @@
 {
-    "version":  "2.6.0",
+    "version":  "2.6.1",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "DE09E541F12E2D3203348FBE505A3AA3A09385722739AF07DA9591FEE2F1C404",
-    "notes":  "v2.6 : recherche instantanee, favoris (clic droit + onglet), historique des commandes, verification quotidienne automatique."
+    "sha256":  "C21CCCEEEE53880D64CCF439605FD9A9963234196F0C757F1A75B9511EF15E03",
+    "notes":  "v2.6.1 : telechargement de mise a jour verifie EN MEMOIRE avant ecriture, aide faux positif antivirus integree, en-tete renforce."
 }

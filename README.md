@@ -135,6 +135,19 @@ Avant toute session de corrections : bouton **« Point de restauration »** (fil
 
 Stratégie conseillée : distribuer **l'EXE signé**, garder le `.ps1` en dépôt privé, publier chaque version avec son SHA256.
 
+## 🦠 Faux positif antivirus (Kaspersky, Defender…)
+
+Un alerte du type **PDM:Trojan.Win32.Generic** est un **faux positif heuristique** : la toolbox enchaîne des commandes d'administration légitimes (téléchargement vérifié, registre, planificateur, élévation) que les heuristiques confondent avec un comportement malveillant. **Le code source est public et auditable.**
+
+**Solutions, de la plus rapide à la plus définitive :**
+1. **Vérifie le fichier** sur [opentip.kaspersky.com](https://opentip.kaspersky.com/) (scan 70+ moteurs — les gros noms le passent, seules 1-2 heuristiques râlent)
+2. **Ajoute une exclusion** pour le dossier de la toolbox (Kaspersky : *Paramètres → Menaces et exclusions* · Windows : *Sécurité Windows → Exclusions*)
+3. **Signale le faux positif** à l'éditeur de l'antivirus (Kaspersky : bouton *Faux positif* sur opentip)
+4. **Signature Authenticode** (`Build-Toolbox.ps1 -SignCert`) : suppression définitive du problème
+5. Si restauré depuis la quarantaine : **ajoute d'abord l'exclusion**, sinon l'antivirus re-flaguera au prochain lancement
+
+Le bouton dédié **« Antivirus : faux positif ? (aide) »** dans l'onglet *À propos* ouvre le scan multi-moteurs et affiche la procédure.
+
 ## ❓ FAQ
 
 - **Pourquoi des boutons orange (admin) ?** SFC, DISM, chkdsk, TRIM, Clear-Tpm, le reset BIOS écrivent dans des zones protégées : Windows exige l'élévation. Tout le reste marche en utilisateur standard.

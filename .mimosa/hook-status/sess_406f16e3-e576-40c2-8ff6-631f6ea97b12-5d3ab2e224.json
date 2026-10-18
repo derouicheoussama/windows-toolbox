@@ -1,10 +1,10 @@
 {
   "schemaVersion": "mimosa-hook-status/v1",
-  "recordedAt": "2026-10-18T01:40:44.740Z",
+  "recordedAt": "2026-10-18T06:43:30.069Z",
   "sessionId": "sess_406f16e3-e576-40c2-8ff6-631f6ea97b12",
   "event": "PostToolUse",
   "toolName": "Edit",
-  "file": "Windows-Toolbox.ps1",
+  "file": "README.md",
   "outcome": "clear",
   "coverage": "complete",
   "findingCount": 0,

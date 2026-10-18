@@ -14,12 +14,21 @@
   ================================================================
 #>
 
+# ----------------------------------------------------------------
+# NOTE ANTIVIRUS : cet outil enchaîne des commandes d'administration
+# légitimes (SFC, DISM, registre, planificateur, mises à jour vérifiées)
+# que les heuristiques peuvent confondre avec un malware — c'est un faux
+# positif. Code source public et auditable :
+#   https://github.com/derouicheoussama/windows-toolbox
+# Contact : https://www.derouicheoussama.com
+# ----------------------------------------------------------------
+
 param(
     [switch]$Admin,
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.6.0'
+$script:ToolboxVersion = '2.6.1'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -410,17 +419,22 @@ try {
     Invoke-WebRequest -Uri $dlUrl -OutFile $tmp -TimeoutSec 300 -UseBasicParsing
     $q.Enqueue("UPDDONE-EXE|$newVer|$tmp")
   } else {
-    $tmp = "$dest.new"
-    Invoke-WebRequest -Uri $dlUrl -OutFile $tmp -TimeoutSec 300 -UseBasicParsing
+    # Téléchargement EN MÉMOIRE : l'empreinte SHA256 est vérifiée avant
+    # la moindre écriture disque (aucun fichier non vérifié ne touche le PC).
+    $tmp = "$dest.update"
+    $resp = Invoke-WebRequest -Uri $dlUrl -UseBasicParsing -TimeoutSec 300
+    $bytes = $resp.Content
     if ($dlHash) {
-      $h = (Get-FileHash $tmp -Algorithm SHA256).Hash
-      if ($h -ne $dlHash) {
-        $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — mise à jour refusée par sécurité.')
-        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+      $sha = [System.Security.Cryptography.SHA256]::Create()
+      $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
+      $sha.Dispose()
+      if ($got -ne $dlHash) {
+        $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — mise à jour refusée par sécurité (rien n''a été écrit sur le disque).')
         return
       }
-      $q.Enqueue('[MAJ] Empreinte SHA256 du téléchargement vérifiée OK')
+      $q.Enqueue('[MAJ] Empreinte SHA256 vérifiée EN MÉMOIRE avant écriture ✓')
     }
+    [IO.File]::WriteAllBytes($tmp, $bytes)
     $errs = $null
     $null = [System.Management.Automation.Language.Parser]::ParseFile($tmp, [ref]$null, [ref]$errs)
     if ($errs -and $errs.Count -gt 0) {
@@ -1682,6 +1696,23 @@ $sticks | ForEach-Object {
 '→ Slots libres = emplacements physiques vides : tu peux ajouter des barrettes sans rien remplacer.'
 '@
 
+$script:CmdFpHelp = @'
+'=== ANTIVIRUS — FAUX POSITIF ? ==='
+'Cet outil enchaîne des commandes d''administration légitimes (SFC, DISM, registre,'
+'planificateur, téléchargements vérifiés SHA256) que les heuristiques peuvent'
+'confondre avec un malware. C''est un FAUX POSITIF — le code source est public :'
+'  https://github.com/derouicheoussama/windows-toolbox
+''
+'1. Vérifie le fichier : https://opentip.kaspersky.com/ (scan 70+ moteurs)'
+'2. Signale le faux positif sur cette même page'
+'3. Exclusion Kaspersky : Paramètres > Menaces et exclusions > Gérer les exclusions'
+'4. Exclusion Windows   : Sécurité Windows > Protection antivirus > Exclusions'
+'5. Solution définitive : signature Authenticode (Build-Toolbox.ps1 -SignCert)'
+''
+Start-Process "https://opentip.kaspersky.com/"
+'Le scan multi-moteurs est lancé dans ton navigateur.'
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -2562,6 +2593,17 @@ function Show-Toolbox {
     $donRow.Font = New-Object Drawing.Font('Segoe UI', 10, [Drawing.FontStyle]::Bold)
     $donRow.Add_Click({ try { Start-Process $script:DonationUrl } catch { } })
     $aboutFlow.Controls.Add($donRow)
+
+    $fpBtn = New-Object Windows.Forms.Button
+    $fpBtn.Text = 'Antivirus : faux positif ? (aide et signalement)'
+    $fpBtn.Size = New-Object Drawing.Size(460, 46)
+    $fpBtn.Margin = New-Object Windows.Forms.Padding(0, 4, 14, 14)
+    $fpBtn.FlatStyle = 'Flat'
+    $fpBtn.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(251, 191, 36)
+    $fpBtn.BackColor = [Drawing.Color]::FromArgb(255, 251, 235)
+    $fpBtn.ForeColor = [Drawing.Color]::FromArgb(180, 83, 9)
+    $fpBtn.Add_Click({ Invoke-ToolButton -Kind 'Inline' -Text 'Antivirus : faux positif — aide' -Script $script:CmdFpHelp })
+    $aboutFlow.Controls.Add($fpBtn)
 
     Build-FavorisTab
 
