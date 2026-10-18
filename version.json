@@ -1,6 +1,6 @@
 {
     "version":  "2.6.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "2CB0624B1BDD26BE65B05C45A11F03ED58B755C673E811ECD18666A77E354177",
+    "sha256":  "DE09E541F12E2D3203348FBE505A3AA3A09385722739AF07DA9591FEE2F1C404",
     "notes":  "v2.6 : recherche instantanee, favoris (clic droit + onglet), historique des commandes, verification quotidienne automatique."
 }

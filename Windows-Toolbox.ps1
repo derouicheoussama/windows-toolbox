@@ -1775,7 +1775,7 @@ function Show-Toolbox {
     $top.Controls.Add($subtitle)
 
     $lblSearch = New-Object Windows.Forms.Label
-    $lblSearch.Text = '🔎'
+    $lblSearch.Text = 'Rechercher :'
     $lblSearch.AutoSize = $true
     $lblSearch.Location = New-Object Drawing.Point(252, 20)
     $top.Controls.Add($lblSearch)
