@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>VectorCraft — Charte graphique</title>
+<style>
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: #F3F4F6; color: #1E2A44; }
+  header { background: linear-gradient(135deg, #2563EB, #7C3AED); color: #fff; padding: 40px; }
+  header h1 { margin: 0; font-size: 34px; }
+  header p { margin: 6px 0 0; opacity: .85; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .card h2 { margin: 0 0 12px; font-size: 16px; color: #2563EB; text-transform: uppercase; letter-spacing: 1px; }
+  .card img { max-width: 100%; border-radius: 10px; }
+  .dark { background: #0B1220; }
+  .sw { display: inline-block; width: 90px; height: 54px; border-radius: 10px; margin: 4px; text-align: center; color: #fff; font-size: 11px; line-height: 54px; }
+  .use { padding: 24px; color: #4B5563; line-height: 1.7; }
+  code { background: #E5E7EB; padding: 2px 6px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>VectorCraft — Charte graphique</h1>
+  <p>Logo, icônes et couleurs officielles du logiciel · ∞ Infinity Coder — Derouiche Oussama</p>
+</header>
+<div class="grid">
+  <div class="card">
+    <h2>Logo principal (fond clair)</h2>
+    <img src="logo-wordmark.png" alt="Logo VectorCraft">
+  </div>
+  <div class="card dark">
+    <h2 style="color:#60A5FA">Variante fond sombre</h2>
+    <img src="logo-dark.png" alt="Logo VectorCraft sombre">
+  </div>
+  <div class="card">
+    <h2>Icône application (512 px)</h2>
+    <img src="logo-icon-512.png" alt="Icône VectorCraft" style="width:256px">
+    <p style="color:#6B7280">Déclinées : 256 · 64 · 48 · 32 · 16 px + <code>VectorCraft.ico</code> (intégrée à l'EXE)</p>
+  </div>
+  <div class="card">
+    <h2>Couleurs officielles</h2>
+    <span class="sw" style="background:#2563EB">#2563EB</span>
+    <span class="sw" style="background:#4F46E5">#4F46E5</span>
+    <span class="sw" style="background:#7C3AED">#7C3AED</span>
+    <span class="sw" style="background:#22D3EE; color:#0B1220">#22D3EE</span>
+    <span class="sw" style="background:#1E2A44">#1E2A44</span>
+    <p style="color:#6B7280">Concept : le « V » tracé comme un tracé vectoriel — points d'ancrage et poignées de Bézier — sur grille blueprint.</p>
+  </div>
+</div>
+<div class="use">
+  <b>Fichiers sources</b> : <code>logo-icon.svg</code> · <code>logo-wordmark.svg</code> · <code>logo-dark.svg</code> (vectoriels, redimensionnables à l'infini).
+  Utilisation : icône EXE/raccourcis (<code>VectorCraft.ico</code>), en-têtes de documents, page GitHub,captures d'App Store.
+</div>
+</body>
+</html>

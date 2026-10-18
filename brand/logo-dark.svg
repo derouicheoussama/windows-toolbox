@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 360" width="1400" height="360">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60A5FA"/>
+      <stop offset="0.55" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(30,20) scale(0.625)">
+    <rect x="16" y="16" width="480" height="480" rx="112" fill="#0B1220"/>
+    <path d="M112 112h288M112 256h288M112 400h288M112 112v288M256 112v288M400 112v288" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="6"/>
+    <path d="M148 150 L256 372 L364 150" fill="none" stroke="url(#bg2)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="148" y1="150" x2="106" y2="108" stroke="#60A5FA" stroke-opacity="0.65" stroke-width="8" stroke-linecap="round"/>
+    <line x1="364" y1="150" x2="406" y2="108" stroke="#A78BFA" stroke-opacity="0.65" stroke-width="8" stroke-linecap="round"/>
+    <line x1="256" y1="372" x2="256" y2="428" stroke="#22D3EE" stroke-opacity="0.65" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="148" cy="150" r="34" fill="#0B1220" stroke="#60A5FA" stroke-width="10"/>
+    <circle cx="364" cy="150" r="34" fill="#0B1220" stroke="#A78BFA" stroke-width="10"/>
+    <circle cx="256" cy="372" r="34" fill="#0B1220" stroke="#22D3EE" stroke-width="10"/>
+  </g>
+  <text x="380" y="200" font-family="Segoe UI, Arial, sans-serif" font-size="150" font-weight="800" fill="#FFFFFF">Vector<tspan fill="url(#bg2)">Craft</tspan></text>
+  <text x="385" y="272" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="600" fill="#9CA3AF" letter-spacing="6">PC DIAGNOSTICS &amp; REPAIR SUITE</text>
+</svg>
