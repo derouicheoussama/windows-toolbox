@@ -85,8 +85,9 @@ if ($manifest.sha256 -and ($got -ne $manifest.sha256)) {
 Write-Host '      ✓ Windows-Toolbox.ps1 (SHA256 vérifié)' -ForegroundColor Green
 
 Invoke-WebRequest -Uri "$base/Uninstall-Toolbox.ps1" -OutFile (Join-Path $tmpDir 'Uninstall-Toolbox.ps1') -TimeoutSec 60 -UseBasicParsing
+Invoke-WebRequest -Uri "$base/Updater-Toolbox.ps1" -OutFile (Join-Path $tmpDir 'Updater-Toolbox.ps1') -TimeoutSec 60 -UseBasicParsing
 Invoke-WebRequest -Uri "$base/Lancer-Toolbox.cmd" -OutFile (Join-Path $tmpDir 'Lancer-Toolbox.cmd') -TimeoutSec 60 -UseBasicParsing
-Write-Host '      ✓ Uninstall-Toolbox.ps1 · Lancer-Toolbox.cmd' -ForegroundColor Green
+Write-Host '      ✓ Uninstall · Updater · Lancer-Toolbox.cmd' -ForegroundColor Green
 
 Write-Host ' 3/4  Installation…'
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null

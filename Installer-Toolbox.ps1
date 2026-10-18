@@ -75,6 +75,7 @@ New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Copy-Item -LiteralPath $srcPs1 -Destination $installDir -Force
 Copy-Item (Join-Path $PSScriptRoot 'Lancer-Toolbox.cmd') $installDir -Force
 Copy-Item (Join-Path $PSScriptRoot 'Uninstall-Toolbox.ps1') $installDir -Force
+Copy-Item (Join-Path $PSScriptRoot 'Updater-Toolbox.ps1') $installDir -Force
 if (Test-Path (Join-Path $PSScriptRoot 'tools')) {
     Copy-Item (Join-Path $PSScriptRoot 'tools') $installDir -Recurse -Force
 }

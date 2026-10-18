@@ -19,7 +19,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.5.0'
+$script:ToolboxVersion = '2.6.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -287,6 +287,7 @@ function Start-InlineCommand {
     param([string]$Title, [string]$Script, [switch]$Stream)
     if ($script:Busy) { Set-Status '⏳ Une commande est déjà en cours, patiente…'; return }
     $script:Busy = $true
+    Write-Historique ("Commande : " + $Title)
     Set-Status ("⏳ Exécution : {0} …" -f $Title)
     Append-Console ''
     Append-Console ('===== {0} =====' -f $Title)
@@ -307,6 +308,7 @@ function Start-InlineCommand {
 
 function Start-ElevatedCommand {
     param([string]$Title, [string]$Script)
+    Write-Historique ("Commande admin : " + $Title)
     Append-Console ''
     Append-Console ('===== [admin] {0} — ouverture d''une console élevée (UAC) =====' -f $Title)
     $tmp  = Join-Path $env:TEMP ("wtoolbox_{0}.ps1" -f [guid]::NewGuid().ToString('N'))
@@ -492,6 +494,104 @@ function Set-StartupWithWindows {
         Append-Console '[OPTIONS] Démarrage avec Windows désactivé.'
     }
 }
+
+function Get-Favoris {
+    $s = Get-ToolboxSetting 'Favoris' ''
+    if (-not $s) { return @() }
+    return @($s -split '◆' | Where-Object { $_ })
+}
+
+function Test-Favori {
+    param([string]$Text)
+    (Get-Favoris) -contains $Text
+}
+
+function Toggle-Favori {
+    param([string]$Text)
+    $f = @(Get-Favoris)
+    if ($f -contains $Text) {
+        $f = @($f | Where-Object { $_ -ne $Text })
+        Set-ToolboxSetting 'Favoris' ([string]::Join('◆', $f))
+        Append-Console '★ Retiré des favoris.'
+    } else {
+        $f += $Text
+        Set-ToolboxSetting 'Favoris' ([string]::Join('◆', $f))
+        Append-Console '★ Ajouté aux favoris (onglet ⭐ Favoris).'
+    }
+    if ($script:FavRebuild) { & $script:FavRebuild }
+}
+
+function Write-Historique {
+    param([string]$Action)
+    try {
+        $d = Join-Path $env:LOCALAPPDATA 'WindowsToolbox'
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $Action) | Add-Content -LiteralPath (Join-Path $d 'historique.log') -Encoding UTF8
+    } catch { }
+}
+
+function Invoke-ToolButton {
+    param([string]$Kind, [string]$Text, [string]$Script, [string]$Target, [string]$TargetArgs, [bool]$Stream)
+    switch ($Kind) {
+        'Inline'      { if ($Script) { Start-InlineCommand -Title $Text -Script $Script -Stream:$Stream } }
+        'Elevated'    { if ($Script) { Start-ElevatedCommand -Title $Text -Script $Script } }
+        'Gui'         { Start-GuiTarget -Target $Target -TargetArgs $TargetArgs }
+        'GuiElevated' { Start-GuiTarget -Target $Target -Elevated }
+        'ScreenTest'  { Show-ScreenTest }
+        'KeyboardTest' { Show-KeyboardTest }
+        'HideApp'     { Hide-Toolbox }
+        'Url'         { try { Start-Process $Target } catch { Append-Console ('[ERREUR] ' + $_.Exception.Message) } }
+    }
+}
+
+function New-FavoriButton {
+    param([hashtable]$Def)
+    $b = New-Object Windows.Forms.Button
+    $b.Text = $Def.Text
+    $b.Size = New-Object Drawing.Size(460, 42)
+    $b.UseMnemonic = $false
+    $b.Margin = New-Object Windows.Forms.Padding(6)
+    $b.TextAlign = 'MiddleLeft'
+    $b.Padding = New-Object Windows.Forms.Padding(10, 0, 0, 0)
+    $b.FlatStyle = 'Flat'
+    $b.FlatAppearance.BorderSize = 1
+    $b.ForeColor = [Drawing.Color]::FromArgb(30, 58, 138)
+    $b.BackColor = [Drawing.Color]::White
+    $b.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(147, 197, 253)
+    if ($Def.Desc) { $script:Tooltip.SetToolTip($b, $Def.Desc) }
+    $menu = New-Object Windows.Forms.ContextMenuStrip
+    [void]$menu.Items.Add('Retirer des favoris', $null, { Toggle-Favori -Text $Def.Text }.GetNewClosure())
+    $b.ContextMenuStrip = $menu
+    $b.Add_Click({ Invoke-ToolButton -Kind $Def.Kind -Text $Def.Text -Script $Def.Script -Target $Def.Target -TargetArgs $Def.TargetArgs -Stream:([bool]$Def.Stream) }.GetNewClosure())
+    return $b
+}
+
+function Build-FavorisTab {
+    if (-not $script:TabFav) { return }
+    $flow = $script:TabFav.Controls[0]
+    if (-not $flow) { return }
+    $flow.Controls.Clear()
+    $favs = @(Get-Favoris)
+    if ($favs.Count -eq 0) {
+        $none = New-Object Windows.Forms.Label
+        $none.Text = '  (aucun favori) — clic droit sur n''importe quel bouton → « Ajouter aux favoris ».'
+        $none.AutoSize = $true
+        $none.ForeColor = [Drawing.Color]::Gray
+        $flow.Controls.Add($none)
+        return
+    }
+    foreach ($t in $favs) {
+        $def = $script:AllButtons | Where-Object { $_.Text -eq $t } | Select-Object -First 1
+        if ($def) { $flow.Controls.Add((New-FavoriButton -Def $def)) }
+    }
+    $count = New-Object Windows.Forms.Label
+    $count.Text = ('  {0} favori(s) — clic droit pour retirer' -f $favs.Count)
+    $count.AutoSize = $true
+    $count.ForeColor = [Drawing.Color]::Gray
+    $count.Margin = New-Object Windows.Forms.Padding(6, 14, 6, 6)
+    $flow.Controls.Add($count)
+}
+$script:FavRebuild = { Build-FavorisTab }
 
 # ----------------------------------------------------------------
 # Commandes (scripts PowerShell exécutés par les boutons)
@@ -1651,6 +1751,7 @@ function Show-Toolbox {
     $form.Icon          = [System.Drawing.SystemIcons]::Shield
     $form.BackColor     = [Drawing.Color]::FromArgb(243, 244, 246)
     $script:Form = $form
+    $script:AllButtons = New-Object System.Collections.ArrayList
 
     $script:Tooltip = New-Object Windows.Forms.ToolTip
     $script:Tooltip.AutoPopDelay = 8000
@@ -1667,11 +1768,40 @@ function Show-Toolbox {
     $top.Controls.Add($title)
 
     $subtitle = New-Object Windows.Forms.Label
-    $subtitle.Text     = 'Commandes Windows · Tests SSD · Diagnostics — ∞ Infinity Coder (Derouiche Oussama)'
+    $subtitle.Text     = 'Diagnostics · SSD · Réparations'
     $subtitle.AutoSize = $true
     $subtitle.ForeColor = [Drawing.Color]::Gray
-    $subtitle.Location = New-Object Drawing.Point(19, 36)
+    $subtitle.Location = New-Object Drawing.Point(19, 38)
     $top.Controls.Add($subtitle)
+
+    $lblSearch = New-Object Windows.Forms.Label
+    $lblSearch.Text = '🔎'
+    $lblSearch.AutoSize = $true
+    $lblSearch.Location = New-Object Drawing.Point(252, 20)
+    $top.Controls.Add($lblSearch)
+
+    $txtSearch = New-Object Windows.Forms.TextBox
+    $txtSearch.Location = New-Object Drawing.Point(276, 16)
+    $txtSearch.Size = New-Object Drawing.Size(212, 26)
+    $script:SearchBox = $txtSearch
+    $script:Tooltip.SetToolTip($txtSearch, 'Filtre les 250+ commandes en direct — Effacer : Échap')
+    $txtSearch.Add_TextChanged({
+        try {
+            $q = $script:SearchBox.Text.Trim().ToLower()
+            $count = 0
+            foreach ($entry in $script:AllButtons) {
+                $match = ($q -eq '') -or ($entry.Text.ToLower().Contains($q)) -or ($entry.Desc.ToLower().Contains($q))
+                $entry.Button.Visible = $match
+                if ($match) { $count++ }
+            }
+            if ($q -ne '') { Set-Status ("🔎 " + $count + " bouton(s) correspondent") }
+        } catch { }
+    })
+    $txtSearch.Add_KeyDown({
+        param($s, $e)
+        if ($e.KeyCode -eq 'Escape') { $script:SearchBox.Text = ''; $e.Handled = $true }
+    })
+    $top.Controls.Add($txtSearch)
 
     $btnHide = New-Object Windows.Forms.Button
     $btnHide.Text = 'Masquer'
@@ -1796,7 +1926,7 @@ function Show-Toolbox {
     # ---------- Onglets ----------
     $tabs = New-Object Windows.Forms.TabControl
     $tabs.Dock = 'Fill'
-    foreach ($spec in @(@('Système', '🖥'), @('Disques & SSD', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('À propos', 'ℹ'))) {
+    foreach ($spec in @(@('Système', '🖥'), @('Disques & SSD', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Favoris', '⭐'), @('À propos', 'ℹ'))) {
         $page = New-Object Windows.Forms.TabPage
         $page.Text = ("{0} {1}" -f $spec[1], $spec[0])
         $page.UseVisualStyleBackColor = $true
@@ -1816,7 +1946,9 @@ function Show-Toolbox {
     $tabBuy    = $tabs.TabPages[6].Controls[0]
     $tabQuick  = $tabs.TabPages[7].Controls[0]
     $tabTools  = $tabs.TabPages[8].Controls[0]
-    $tabAbout  = $tabs.TabPages[9]
+    $tabFav    = $tabs.TabPages[9].Controls[0]
+    $tabAbout  = $tabs.TabPages[10]
+    $script:TabFav = $tabFav
 
     function Add-Section {
         param($Parent, [string]$Text)
@@ -1866,17 +1998,16 @@ function Show-Toolbox {
             }
         }
         if ($Desc) { $script:Tooltip.SetToolTip($b, $Desc) }
+        $script:AllButtons.Add(@{
+            Button = $b; Text = $Text; Kind = $Kind; Script = $Script
+            Target = $Target; TargetArgs = $TargetArgs; Desc = $Desc; Stream = [bool]$Stream
+        }) | Out-Null
+        $menu = New-Object Windows.Forms.ContextMenuStrip
+        $favLabel = if (Test-Favori $Text) { 'Retirer des favoris' } else { 'Ajouter aux favoris' }
+        [void]$menu.Items.Add($favLabel, $null, { Toggle-Favori -Text $Text }.GetNewClosure())
+        $b.ContextMenuStrip = $menu
         $b.Add_Click({
-            switch ($Kind) {
-                'Inline'      { if ($Script) { Start-InlineCommand -Title $Text -Script $Script -Stream:$Stream } }
-                'Elevated'    { if ($Script) { Start-ElevatedCommand -Title $Text -Script $Script } }
-                'Gui'         { Start-GuiTarget -Target $Target -TargetArgs $TargetArgs }
-                'GuiElevated' { Start-GuiTarget -Target $Target -Elevated }
-                'ScreenTest'  { Show-ScreenTest }
-                'KeyboardTest' { Show-KeyboardTest }
-                'HideApp'     { Hide-Toolbox }
-                'Url'         { try { Start-Process $Target } catch { Append-Console ('[ERREUR] ' + $_.Exception.Message) } }
-            }
+            Invoke-ToolButton -Kind $Kind -Text $Text -Script $Script -Target $Target -TargetArgs $TargetArgs -Stream:([bool]$Stream)
         }.GetNewClosure())
         $Parent.Controls.Add($b)
     }
@@ -2231,6 +2362,25 @@ function Show-Toolbox {
     Add-OptionCheck $tabQuick 'Démarrer automatiquement avec Windows' 'StartWithWindows' -OnChange {
         Set-StartupWithWindows ((Get-ToolboxSetting 'StartWithWindows' 0) -eq 1)
     }
+    Add-OptionCheck $tabQuick 'Vérifier les mises à jour chaque jour à 12h00 (tâche planifiée, installation silencieuse)' 'UpdateTask' -OnChange {
+        $up = Join-Path $PSScriptRoot 'Updater-Toolbox.ps1'
+        if (-not (Test-Path -LiteralPath $up)) { $up = Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox\Updater-Toolbox.ps1' }
+        if ((Get-ToolboxSetting 'UpdateTask' 0) -eq 1) {
+            if (Test-Path -LiteralPath $up) {
+                schtasks /create /f /tn 'WindowsToolboxUpdate' /sc DAILY /st 12:00 /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$up`" -Silent" 2>&1 | Out-Null
+                Append-Console '[OPTIONS] Tâche planifiée créée : mise à jour de la toolbox vérifiée et installée chaque jour à 12h00.'
+            } else {
+                Append-Console '[OPTIONS] Updater-Toolbox.ps1 introuvable à côté du script ni dans la copie installée.'
+            }
+        } else {
+            schtasks /delete /tn 'WindowsToolboxUpdate' /f 2>$null
+            Append-Console '[OPTIONS] Tâche planifiée supprimée.'
+        }
+    } -Desc 'Utilise Updater-Toolbox.ps1 -Silent : installe automatiquement les mises à jour de la toolbox (vérifiées SHA256)'
+
+    Add-Section $tabQuick 'Historique'
+    Add-CmdButton $tabQuick 'Voir l''historique des commandes (50 dernières)' -Script '$h = Join-Path $env:LOCALAPPDATA "WindowsToolbox\historique.log"; if (Test-Path -LiteralPath $h) { Get-Content -LiteralPath $h -Tail 50 } else { "Aucun historique — les commandes exécutées s''y inscrivent automatiquement." }'
+    Add-CmdButton $tabQuick 'Vider l''historique' -Script '$h = Join-Path $env:LOCALAPPDATA "WindowsToolbox\historique.log"; Remove-Item -LiteralPath $h -Force -ErrorAction SilentlyContinue; "Historique vidé."'
 
     $kbd = New-Object Windows.Forms.Label
     $kbd.Text = ("RACCOURCIS CLAVIER`r`n" +
@@ -2412,6 +2562,8 @@ function Show-Toolbox {
     $donRow.Font = New-Object Drawing.Font('Segoe UI', 10, [Drawing.FontStyle]::Bold)
     $donRow.Add_Click({ try { Start-Process $script:DonationUrl } catch { } })
     $aboutFlow.Controls.Add($donRow)
+
+    Build-FavorisTab
 
     # ---------- Assemblage ----------
     $form.Controls.Add($tabs)
