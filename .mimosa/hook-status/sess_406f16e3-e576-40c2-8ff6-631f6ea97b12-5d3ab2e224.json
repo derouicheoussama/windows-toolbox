@@ -1,10 +1,10 @@
 {
   "schemaVersion": "mimosa-hook-status/v1",
-  "recordedAt": "2026-10-26T06:40:16.890Z",
+  "recordedAt": "2026-10-26T06:57:56.372Z",
   "sessionId": "sess_406f16e3-e576-40c2-8ff6-631f6ea97b12",
   "event": "PostToolUse",
   "toolName": "Write",
-  "file": "C:\\Users\\Derouiche Oussama\\AppData\\Local\\Temp\\clean-vc.ps1",
+  "file": "C:\\Users\\Derouiche Oussama\\AppData\\Local\\Temp\\upload-setupexe.ps1",
   "outcome": "clear",
   "coverage": "complete",
   "findingCount": 0,
