@@ -1,6 +1,7 @@
 {
-    "version":  "2.6.1",
+    "version":  "2.7.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "C21CCCEEEE53880D64CCF439605FD9A9963234196F0C757F1A75B9511EF15E03",
-    "notes":  "v2.6.1 : telechargement de mise a jour verifie EN MEMOIRE avant ecriture, aide faux positif antivirus integree, en-tete renforce."
+    "sha256":  "E9846F9E3442091BD1975CB9569F5A7C395F6FADEC463612BF8175B8C899B7FC",
+    "notes":  "v2.7.0 : open source GPL-3.0, rotation historique, redemarrage propre, en-tetes de licence, optimisations.",
+    "license":  "GPL-3.0 (C) 2026 Derouiche Oussama"
 }

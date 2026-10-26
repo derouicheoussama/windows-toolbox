@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.6.1'
+$script:ToolboxVersion = '2.7.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -540,7 +540,13 @@ function Write-Historique {
     try {
         $d = Join-Path $env:LOCALAPPDATA 'WindowsToolbox'
         New-Item -ItemType Directory -Force -Path $d | Out-Null
-        ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $Action) | Add-Content -LiteralPath (Join-Path $d 'historique.log') -Encoding UTF8
+        $log = Join-Path $d 'historique.log'
+        ("[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $Action) | Add-Content -LiteralPath $log -Encoding UTF8
+        $item = Get-Item -LiteralPath $log -ErrorAction SilentlyContinue
+        if ($item -and $item.Length -gt 200KB) {
+            $tail = Get-Content -LiteralPath $log -Tail 100
+            Set-Content -LiteralPath $log -Value $tail -Encoding UTF8
+        }
     } catch { }
 }
 
@@ -554,6 +560,7 @@ function Invoke-ToolButton {
         'ScreenTest'  { Show-ScreenTest }
         'KeyboardTest' { Show-KeyboardTest }
         'HideApp'     { Hide-Toolbox }
+        'RestartApp'  { Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`""); $script:Form.Close() }
         'Url'         { try { Start-Process $Target } catch { Append-Console ('[ERREUR] ' + $_.Exception.Message) } }
     }
 }
@@ -2354,6 +2361,7 @@ function Show-Toolbox {
     Add-CmdButton $tabQuick 'Afficher le bureau (basculer)' -Kind 'Gui' -Target 'shell:::{3080F90D-D7AD-11D9-BD98-0000947B0257}'
     Add-CmdButton $tabQuick 'Vider le presse-papiers' -Script "'' | Set-Clipboard; 'Presse-papiers vidé.'"
     Add-CmdButton $tabQuick 'Masquer la toolbox (systray)' -Kind 'HideApp' -Desc 'Même effet que le bouton Masquer ou Ctrl+H'
+    Add-CmdButton $tabQuick 'Redémarrer la toolbox (applique les réglages)' -Kind 'RestartApp' -Desc 'Relance proprement l''application'
     Add-CmdButton $tabQuick 'Mise en veille' -Kind 'Gui' -Target 'rundll32.exe' -TargetArgs 'powrprof.dll,SetSuspendState 0,1,0' -Desc 'Si l''hibernation est activée, met en hibernation'
     Add-CmdButton $tabQuick '⚠ Redémarrer le PC maintenant' -Kind 'Gui' -Target 'shutdown.exe' -TargetArgs '/r /t 0' -Desc 'Sauvegarde tes documents avant de cliquer !'
     Add-CmdButton $tabQuick '⚠ Éteindre le PC maintenant' -Kind 'Gui' -Target 'shutdown.exe' -TargetArgs '/s /t 0' -Desc 'Sauvegarde tes documents avant de cliquer !'
@@ -2604,6 +2612,30 @@ function Show-Toolbox {
     $fpBtn.ForeColor = [Drawing.Color]::FromArgb(180, 83, 9)
     $fpBtn.Add_Click({ Invoke-ToolButton -Kind 'Inline' -Text 'Antivirus : faux positif — aide' -Script $script:CmdFpHelp })
     $aboutFlow.Controls.Add($fpBtn)
+
+    $licBtn = New-Object Windows.Forms.Button
+    $licBtn.Text = 'Open source GPL-3.0 — Copyright Derouiche Oussama'
+    $licBtn.Size = New-Object Drawing.Size(460, 46)
+    $licBtn.Margin = New-Object Windows.Forms.Padding(0, 4, 14, 14)
+    $licBtn.FlatStyle = 'Flat'
+    $licBtn.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(147, 197, 253)
+    $licBtn.BackColor = [Drawing.Color]::FromArgb(239, 246, 255)
+    $licBtn.ForeColor = [Drawing.Color]::FromArgb(37, 99, 235)
+    $licBtn.Add_Click({
+        $lic = @'
+'=== LICENCE — GPL-3.0 ==='
+'Copyright (C) 2026 Derouiche Oussama - Infinity Coder'
+''
+'Ce logiciel est libre : tu peux l''utiliser, l''etudier, le modifier'
+'et le redistribuer, A CONDITION que toute copie ou version modifiee'
+'reste open source sous GPL-3.0 et te credite comme auteur.'
+''
+'Licence complete : fichier LICENSE du projet ou'
+'  https://www.gnu.org/licenses/gpl-3.0.html
+'@
+        Invoke-ToolButton -Kind 'Inline' -Text 'Licence GPL-3.0' -Script $lic
+    })
+    $aboutFlow.Controls.Add($licBtn)
 
     Build-FavorisTab
 

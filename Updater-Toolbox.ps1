@@ -1,4 +1,6 @@
-﻿#Requires -Version 5.1
+﻿# Copyright (C) 2026 Derouiche Oussama - Infinity Coder
+# Licencie GPL-3.0 : libre, mais toute copie ou modification reste open source et credite l'auteur. Voir LICENSE
+#Requires -Version 5.1
 <#
   ================================================================
    UPDATER AVANCÉ — Windows 11 Toolbox

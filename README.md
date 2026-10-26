@@ -157,6 +157,12 @@ Le bouton dédié **« Antivirus : faux positif ? (aide) »** dans l'onglet *À 
 - **Antivirus/SmartScreen râle sur l'EXE ?** Normal pour un exe non signé : signe-le (`-SignCert`) ou distribue le `.ps1` avec le `.cmd`.
 - **Un fichier est signalé modifié au démarrage ?** L'auto-contrôle d'intégrité a détecté une différence avec `checksums.txt` — retélécharge depuis la source officielle.
 
+## 📄 Licence open source
+
+**GPL-3.0** — Copyright (C) 2026 Derouiche Oussama — ∞ Infinity Coder.
+
+Le projet est **open source** : tu peux l'utiliser, l'étudier, le modifier et le redistribuer librement. En contrepartie du copyleft GPL-3.0, **toute copie ou version modifiée doit rester open source** et créditer l'auteur d'origine. Le copyright reste la propriété de Derouiche Oussama — la licence définit simplement les droits accordés aux autres. Texte complet : fichier [`LICENSE`](LICENSE).
+
 ## 💜 Soutenir le projet
 
 Le bouton **« Faire un don »** (barre du haut + À propos) ouvre ta page PayPal — personnalise-la en tête de `Windows-Toolbox.ps1` (`$script:DonationUrl`). Les liens site/réseaux sociaux sont juste en dessous.

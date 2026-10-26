@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Derouiche Oussama - Infinity Coder
+# Licencie GPL-3.0 : libre, mais toute copie ou modification reste open source et credite l'auteur. Voir LICENSE
 #!/bin/bash
 # =================================================================
 #  MAC TOOLBOX — Diagnostics, maintenance, raccourcis & réglages
@@ -8,7 +10,7 @@
 #  Aucune installation. Certaines actions demandent le mot de passe (sudo).
 # =================================================================
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 MANIFEST_URL="https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/mac/mac-version.json"
 SCRIPT_URL="https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/mac/Mac-Toolbox.command"
 
