@@ -69,12 +69,12 @@ if ($Exe) {
     $m = Select-String -LiteralPath $scriptFile -Pattern "ToolboxVersion\s*=\s*'([^']+)'"
     if ($m) { $ver = $m.Matches[0].Groups[1].Value }
     $exe = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
-    $icoFile = Join-Path $PSScriptRoot 'brand\VectorCraft.ico'
+    $icoFile = Join-Path $PSScriptRoot 'brand\Windows-Toolbox.ico'
     $icoArg = @()
     if (Test-Path -LiteralPath $icoFile) { $icoArg = @('-iconFile', $icoFile) }
     Write-Host ''
     Write-Host " Compilation en EXE (version $ver)…" -ForegroundColor Cyan
-    Invoke-PS2EXE -inputFile $scriptFile -outputFile $exe -noConsole @icoArg -title 'VectorCraft — Windows 11 Toolbox' -description 'Diagnostics, tests SSD, réparations et raccourcis Windows - VectorCraft' -company 'Derouiche Oussama' -product 'VectorCraft' -copyright '(c) Derouiche Oussama - Infinity Coder' -version $ver
+    Invoke-PS2EXE -inputFile $scriptFile -outputFile $exe -noConsole @icoArg -title 'Windows 11 Toolbox' -description 'Commandes Windows, tests SSD et diagnostics - Infinity Coder' -company 'Derouiche Oussama' -product 'Windows 11 Toolbox' -copyright '(c) Derouiche Oussama - Infinity Coder' -version $ver
     if (Test-Path -LiteralPath $exe) {
         Write-Host (" EXE créé : " + $exe) -ForegroundColor Green
         if ($SignCert) { Invoke-SignFile -File $exe -Pfx $SignCert -Password $CertPassword }
