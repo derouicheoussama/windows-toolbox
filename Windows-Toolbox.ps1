@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.9.0'
+$script:ToolboxVersion = '3.0.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -1875,6 +1875,152 @@ if ($groups) {
 } else { 'Aucun doublon detecte.' }
 '@
 
+# ---------------- Monitoring temps réel & capteurs (v3.0) ----------------
+
+$script:CmdMonLive = @'
+'=== SURVEILLANCE TEMPS RÉEL — 10 mesures de 2 s (Ctrl+C pour arrêter) ==='
+''
+'  Heure   |  CPU % | RAM libre |  Disque L / E Mo/s |  Réseau R / E Mo/s'
+1..10 | ForEach-Object {
+  $t = Get-Date -Format HH:mm:ss
+  $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Where-Object Name -eq '_Total').PercentProcessorTime
+  $mem = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes
+  $dk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk | Where-Object Name -eq '_Total'
+  $nw = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface | Where-Object { $_.Name -notmatch 'Loopback|isatap|Teredo' }
+  $dr = [math]::Round($dk.DiskReadBytesPersec/1MB, 2)
+  $dw = [math]::Round($dk.DiskWriteBytesPersec/1MB, 2)
+  $nr = [math]::Round((($nw | Measure-Object BytesReceivedPersec -Sum).Sum)/1MB, 2)
+  $ns = [math]::Round((($nw | Measure-Object BytesSentPersec -Sum).Sum)/1MB, 2)
+  '{0} | {1,3} % | {2,5} Mo | {3,9:N2} / {4,9:N2} | {5,9:N2} / {6,9:N2}' -f $t, $cpu, $mem, $dr, $dw, $nr, $ns
+  Start-Sleep -Seconds 2
+}
+''
+'→ CPU élevé en continu ? Top processus CPU : onglet ⚡ Rares.'
+'@
+
+$script:CmdMonLong = @'
+$out = Join-Path ([Environment]::GetFolderPath('Desktop')) ('surveillance-' + $env:COMPUTERNAME + '-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.csv')
+'heure,cpu_pct,ram_libre_mo,disque_lecture_mo_s,disque_ecriture_mo_s,reseau_recu_mo_s,reseau_envoye_mo_s' | Set-Content $out
+'SURVEILLANCE 60 s — 30 mesures toutes les 2 s (journal : ' + $out + ')'
+''
+1..30 | ForEach-Object {
+  $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Where-Object Name -eq '_Total').PercentProcessorTime
+  $mem = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes
+  $dk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk | Where-Object Name -eq '_Total'
+  $nw = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface | Where-Object { $_.Name -notmatch 'Loopback|isatap|Teredo' }
+  $dr = [math]::Round($dk.DiskReadBytesPersec/1MB, 2)
+  $dw = [math]::Round($dk.DiskWriteBytesPersec/1MB, 2)
+  $nr = [math]::Round((($nw | Measure-Object BytesReceivedPersec -Sum).Sum)/1MB, 2)
+  $ns = [math]::Round((($nw | Measure-Object BytesSentPersec -Sum).Sum)/1MB, 2)
+  '{0:HH:mm:ss} | CPU {1,3} % | RAM libre {2} Mo | Disque {3}/{4} Mo/s | Reseau {5}/{6} Mo/s' -f (Get-Date -Format HH:mm:ss), $cpu, $mem, $dr, $dw, $nr, $ns | Add-Content $out
+  Start-Sleep -Seconds 2
+}
+''
+'Journal CSV termine : ' + $out
+'-> Ouvre-le dans Excel pour les courbes.'
+'@
+
+$script:CmdGpuSmi = @'
+$smi = Join-Path $env:SystemRoot 'System32\nvidia-smi.exe'
+if (Test-Path $smi) {
+  & $smi --query-gpu=name,driver_version,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw,clocks.gr --format=csv
+  ''
+  '→ Température GPU > 85 °C au repos = refroidissement à vérifier.'
+} else { 'nvidia-smi absent (pas de GPU NVIDIA, ou pilote ancien).' }
+'@
+
+$script:CmdThermalAdmin = @'
+'=== ZONES THERMIQUES ACPI (dépend de la carte mère) ==='
+try {
+  Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | ForEach-Object {
+    '{0} : {1:N1} °C' -f $_.InstanceName, (($_.CurrentTemperature/10) - 273.15)
+  }
+} catch { 'Zones thermiques non exposees par cette carte mere (courant).' }
+''
+'=== TEMPÉRATURES DISQUES (compteurs de fiabilité) ==='
+Get-PhysicalDisk | ForEach-Object {
+  $c = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
+  if ($c -and $c.Temperature) { '{0} : {1} °C' -f $_.FriendlyName, $c.Temperature }
+}
+''
+'=== GPU (nvidia-smi) ==='
+$smi = Join-Path $env:SystemRoot 'System32\nvidia-smi.exe'
+if (Test-Path $smi) { & $smi --query-gpu=name,temperature.gpu,utilization.gpu --format=csv,noheader } else { 'nvidia-smi absent.' }
+''
+'→ Lecture des sondes brutes (VCore, ventilateurs) : noyau requis — HWiNFO reste la reference materielle.'
+'@
+
+$script:CmdPhotoSys = @'
+$d = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsToolbox\Photos'
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+$out = Join-Path $d ('photo-' + $env:COMPUTERNAME + '-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.json')
+$os = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
+$snap = [ordered]@{
+  date          = (Get-Date -Format 'o')
+  ordinateur    = $env:COMPUTERNAME
+  os            = $os.Caption
+  build         = $os.BuildNumber
+  ramGo         = [math]::Round($cs.TotalPhysicalMemory/1GB, 1)
+  disques       = @(Get-Volume | Where-Object DriveLetter | ForEach-Object { [ordered]@{ lecteur = $_.DriveLetter; libreGo = [math]::Round($_.SizeRemaining/1GB, 1) } })
+  programmes    = @(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue | Where-Object DisplayName | ForEach-Object { ($_.DisplayName + ' ' + $_.DisplayVersion).Trim() })
+  demarrage     = @(Get-CimInstance Win32_StartupCommand | ForEach-Object { $_.Name })
+  hotfixDernier = (Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 1).HotFixID
+}
+[IO.File]::WriteAllText($out, ($snap | ConvertTo-Json -Depth 3), (New-Object System.Text.UTF8Encoding $false))
+'Photo système enregistrée : ' + $out
+'Programmes suivis : ' + @($snap.programmes).Count + ' | Démarrage : ' + @($snap.demarrage).Count
+'→ Prends-en une AVANT une installation, une APRES : le bouton Comparer montre les différences.'
+'@
+
+$script:CmdPhotoCmp = @'
+Add-Type -AssemblyName Microsoft.VisualBasic
+$d = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsToolbox\Photos'
+$photos = @(Get-ChildItem $d -Filter 'photo-*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+if ($photos.Count -lt 2) { 'Il faut au moins deux photos : prends-en une avant, une après (bouton ci-dessus).'; return }
+''
+'Photos disponibles (la plus ancienne d''abord) :'
+$n = 0
+foreach ($p in $photos) { '{0}) {1}' -f $n, $p.Name; $n++ }
+$a = [int]([Microsoft.VisualBasic.Interaction]::InputBox('Numéro de la photo AVANT', 'Comparer', '0'))
+$b = [int]([Microsoft.VisualBasic.Interaction]::InputBox('Numéro de la photo APRES', 'Comparer', ($photos.Count - 1)))
+$A = Get-Content $photos[$a].FullName -Raw | ConvertFrom-Json
+$B = Get-Content $photos[$b].FullName -Raw | ConvertFrom-Json
+''
+'=== COMPARAISON ==='
+''
+'--- Programmes ---'
+$diff = Compare-Object @($A.programmes) @($B.programmes)
+if ($diff) {
+  $diff | ForEach-Object { '{0} {1}' -f $(if ($_.SideIndicator -eq '=>') { '+' } else { '-' }), $_.InputObject }
+} else { 'Aucun changement de programmes.' }
+''
+'--- Espace disque ---'
+foreach ($dd in $B.disques) {
+  $old = $A.disques | Where-Object { $_.lecteur -eq $dd.lecteur }
+  if ($old) {
+    $delta = [math]::Round($dd.libreGo - $old.libreGo, 1)
+    '{0}: {1:N1} Go libres ({2}{3:N1} Go)' -f $dd.lecteur, $dd.libreGo, $(if ($delta -ge 0) { '+' } else { '' }), $delta
+  }
+}
+''
+'--- Démarrage ---'
+'Demarrage : {0} -> {1} programmes' -f @($A.demarrage).Count, @($B.demarrage).Count
+'@
+
+$script:CmdEventTimeline = @'
+'=== CHRONOLOGIE DES ALERTES SYSTÈME — 7 JOURS ==='
+$ev = Get-WinEvent -FilterHashtable @{ LogName = 'System'; Level = 1, 2, 3; StartTime = (Get-Date).AddDays(-7) } -ErrorAction SilentlyContinue
+if ($ev) {
+  $ev | Group-Object { $_.TimeCreated.ToString('yyyy-MM-dd') } | Sort-Object Name | ForEach-Object {
+    '{0} : {1,4} {2}' -f $_.Name, $_.Count, ('#' * [math]::Min(40, [int]($_.Count/2)))
+  }
+  ''
+  'Principales sources :'
+  $ev | Group-Object ProviderName | Sort-Object Count -Descending | Select-Object -First 8 | ForEach-Object { '  {0,-32} {1}' -f $_.Name, $_.Count }
+} else { 'Aucune alerte sur 7 jours — excellent.' }
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -2119,7 +2265,7 @@ function Show-Toolbox {
     # ---------- Onglets ----------
     $tabs = New-Object Windows.Forms.TabControl
     $tabs.Dock = 'Fill'
-    foreach ($spec in @(@('Système', '🖥'), @('Disques & SSD', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Favoris', '⭐'), @('À propos', 'ℹ'))) {
+    foreach ($spec in @(@('Système', '🖥'), @('Disques & SSD', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Favoris', '⭐'), @('Monitoring', '📊'), @('À propos', 'ℹ'))) {
         $page = New-Object Windows.Forms.TabPage
         $page.Text = ("{0} {1}" -f $spec[1], $spec[0])
         $page.UseVisualStyleBackColor = $true
@@ -2140,7 +2286,8 @@ function Show-Toolbox {
     $tabQuick  = $tabs.TabPages[7].Controls[0]
     $tabTools  = $tabs.TabPages[8].Controls[0]
     $tabFav    = $tabs.TabPages[9].Controls[0]
-    $tabAbout  = $tabs.TabPages[10]
+    $tabMon    = $tabs.TabPages[10].Controls[0]
+    $tabAbout  = $tabs.TabPages[11]
     $script:TabFav = $tabFav
 
     # ---------- Bandeau santé (tableau de bord d'accueil, v2.9) ----------
@@ -2621,6 +2768,23 @@ function Show-Toolbox {
     $kbd.ForeColor = [Drawing.Color]::FromArgb(60, 60, 70)
     $kbd.Margin = New-Object Windows.Forms.Padding(6, 10, 6, 6)
     $tabQuick.Controls.Add($kbd)
+
+    # ================= Onglet Monitoring =================
+    Add-Section $tabMon 'Surveillance temps réel'
+    Add-CmdButton $tabMon 'LIVE 20 s — CPU, RAM, disque, réseau' -Stream -Script $script:CmdMonLive -Desc '10 mesures toutes les 2 s — CPU %, RAM libre, disque et réseau en Mo/s'
+    Add-CmdButton $tabMon 'LIVE 60 s — surveillance longue + journal CSV' -Stream -Script $script:CmdMonLong -Desc 'Journal .csv sur le Bureau, ouvrable dans Excel'
+
+    Add-Section $tabMon 'Capteurs'
+    Add-CmdButton $tabMon 'GPU : température, usage, VRAM, puissance (nvidia-smi)' -Stream -Script $script:CmdGpuSmi -Desc 'Détecte automatiquement les GPU NVIDIA'
+    Add-CmdButton $tabMon 'Températures : thermiques + disques + GPU (admin)' -Kind 'Elevated' -Script $script:CmdThermalAdmin -Desc 'Sondes ACPI, températures SSD/NVMe et GPU'
+    Add-CmdButton $tabMon 'Ventilateurs & alimentation' -Script '$f = Get-CimInstance Win32_Fan -ErrorAction SilentlyContinue; if ($f) { $f | Format-List Name, DesiredSpeed, VariableSpeed } else { "Ventilateurs non exposés par WMI (pilote constructeur requis)." }; ""; $b = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue; if ($b) { "Batterie : {0} %" -f $b.EstimatedChargeRemaining } else { "PC fixe — pas de batterie." }'
+
+    Add-Section $tabMon 'Analyse'
+    Add-CmdButton $tabMon 'Chronologie des alertes système (7 jours, histogramme)' -Stream -Script $script:CmdEventTimeline
+
+    Add-Section $tabMon 'Photos système (avant / après)'
+    Add-CmdButton $tabMon 'Prendre une photo système (snapshot JSON)' -Script $script:CmdPhotoSys -Desc 'Archive programmes, démarrage, disques — comparable plus tard'
+    Add-CmdButton $tabMon 'Comparer deux photos système (avant / après)' -Script $script:CmdPhotoCmp -Desc 'Diff programmes, espace disque, démarrage entre deux photos'
 
     # ================= Onglet Outils tiers =================
     Add-Section $tabTools 'Installer les outils essentiels (winget)'
