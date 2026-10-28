@@ -1,4 +1,4 @@
-# 🧰 Windows 11 Toolbox
+﻿# 🧰 Windows 11 Toolbox
 
 > **La boîte à outils Windows que tu gardes sur ta clé USB** : diagnostics, tests SSD, réparations, registre, BIOS/UEFI, nettoyage, achat PC, raccourcis — 10 onglets, **250+ commandes cliquables**, dans une seule fenêtre. PowerShell natif, **aucune installation**.
 
