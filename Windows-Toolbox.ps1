@@ -638,9 +638,9 @@ $script:FavRebuild = { Build-FavorisTab }
 # Commandes (scripts PowerShell exécutés par les boutons)
 # ----------------------------------------------------------------
 $script:CmdSummary = @'
-$os  = Get-CimInstance Win32_OperatingSystem
-$cs  = Get-CimInstance Win32_ComputerSystem
-$bio = Get-CimInstance Win32_BIOS
+$os  = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$cs  = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
+$bio = Get-CimInstance Win32_BIOS | Select-Object -First 1
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
 $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
 'Machine      : {0} {1}' -f $cs.Manufacturer, $cs.Model
@@ -1125,8 +1125,8 @@ Stop-Service dmwappushservice -Force -ErrorAction SilentlyContinue
 $script:CmdAudit = @'
 '=== AUDIT EXPRESS WINDOWS TOOLBOX (lecture seule) ==='
 ''
-$os = Get-CimInstance Win32_OperatingSystem
-$cs = Get-CimInstance Win32_ComputerSystem
+$os = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
 'Windows : {0} (build {1})' -f $os.Caption, $os.BuildNumber
 $up = (Get-Date) - $os.LastBootUpTime
 'Allumé depuis {0} j {1} h {2} min — dernier démarrage {3:yyyy-MM-dd HH:mm}' -f $up.Days, $up.Hours, $up.Minutes, $os.LastBootUpTime
@@ -1175,8 +1175,8 @@ if ($bat) { 'Batterie : {0} % de charge' -f $bat.EstimatedChargeRemaining }
 # ---------------- Achat PC (pré-achat) ----------------
 
 $script:CmdBuySpecs = @'
-$os = Get-CimInstance Win32_OperatingSystem
-$cs = Get-CimInstance Win32_ComputerSystem
+$os = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
 'Windows      : {0} ({1})' -f $os.Caption, $os.OSArchitecture
 'Machine      : {0} {1}' -f $cs.Manufacturer, $cs.Model
@@ -1217,7 +1217,7 @@ try {
 '@
 
 $script:CmdBuyInstallDate = @'
-$os = Get-CimInstance Win32_OperatingSystem
+$os = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
 $up = (Get-Date) - $os.LastBootUpTime
 'Windows installé le : {0:yyyy-MM-dd}' -f $os.InstallDate
 'Allumé depuis       : {0} j {1} h {2} min (si le vendeur dit « à peine utilisé »…)' -f $up.Days, $up.Hours, $up.Minutes
@@ -1230,8 +1230,8 @@ $flags = New-Object System.Collections.Generic.List[string]
 function Add-R([string]$line) { $r.Add($line) }
 function Add-Flag([string]$line) { $flags.Add($line) }
 
-$os = Get-CimInstance Win32_OperatingSystem
-$cs = Get-CimInstance Win32_ComputerSystem
+$os = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
 $up = (Get-Date) - $os.LastBootUpTime
 
@@ -1637,10 +1637,10 @@ $script:CmdHwFull = @'
 '========== INVENTAIRE MATÉRIEL COMPLET =========='
 ''
 '--- CARTE MÈRE & BIOS ---'
-$bb = Get-CimInstance Win32_BaseBoard
+$bb = Get-CimInstance Win32_BaseBoard | Select-Object -First 1
 'Fabricant : {0}' -f $bb.Manufacturer
 'Modèle    : {0} (version {1})' -f $bb.Product, $bb.Version
-$bios = Get-CimInstance Win32_BIOS
+$bios = Get-CimInstance Win32_BIOS | Select-Object -First 1
 'Bios      : {0} — {1} ({2:yyyy-MM-dd})' -f $bios.Manufacturer, $bios.SMBIOSBIOSVersion, $bios.ReleaseDate
 'Mode firmware : {0}' -f $env:firmware_type
 ''
@@ -1700,9 +1700,9 @@ try {
 '@
 
 $script:CmdMotherboard = @'
-$bb = Get-CimInstance Win32_BaseBoard
-$cs = Get-CimInstance Win32_ComputerSystemProduct
-$bio = Get-CimInstance Win32_BIOS
+$bb = Get-CimInstance Win32_BaseBoard | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1Product
+$bio = Get-CimInstance Win32_BIOS | Select-Object -First 1
 'Fabricant carte mère : {0}' -f $bb.Manufacturer
 'Modèle               : {0} — version {1}' -f $bb.Product, $bb.Version
 'Bios                 : {0} — version {1} ({2:yyyy-MM-dd})' -f $bio.Manufacturer, $bio.SMBIOSBIOSVersion, $bio.ReleaseDate
@@ -1782,8 +1782,8 @@ function A([string]$s) { $r.Add($s) }
 A ('=' * 60)
 A (' RAPPORT TECHNICIEN — ' + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 A ('=' * 60)
-$os = Get-CimInstance Win32_OperatingSystem
-$cs = Get-CimInstance Win32_ComputerSystem
+$os = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
 $up = (Get-Date) - $os.LastBootUpTime
 A ('Machine  : {0} {1}' -f $cs.Manufacturer, $cs.Model)
 A ('Windows  : {0} build {1}' -f $os.Caption, $os.BuildNumber)
@@ -2148,14 +2148,15 @@ function Show-Toolbox {
     $strip.Dock = 'Top'
     $strip.Height = 76
     $strip.BackColor = [Drawing.Color]::White
-    $tabSystem.Controls.Add($strip)
+    $tabs.TabPages[0].Controls.Add($strip)
     $script:DashLabels = @{}
     $i = 0
     foreach ($k in @('os', 'disk', 'ram', 'av', 'maj')) {
         $dl = New-Object Windows.Forms.Label
         $dl.AutoSize = $false
         $dl.Size = New-Object Drawing.Size(186, 52)
-        $dl.Location = New-Object Drawing.Point(14 + $i * 190, 10)
+        $px = 14 + $i * 190
+        $dl.Location = New-Object Drawing.Point($px, 10)
         $dl.Font = New-Object Drawing.Font('Segoe UI', 9)
         $dl.ForeColor = [Drawing.Color]::FromArgb(75, 85, 99)
         $dl.Text = $k + ' : analyse…'
@@ -2981,8 +2982,8 @@ function Show-Toolbox {
         Start-InlineCommand -Title 'Inventaire rapide (automatique)' -Script ($script:CmdSummary + "`r`n" + $script:CmdDiskHealth + @'
 
 '--- TABLEAU DE BORD ---'
-$dOs = Get-CimInstance Win32_OperatingSystem
-$dCs = Get-CimInstance Win32_ComputerSystem
+$dOs = Get-CimInstance Win32_OperatingSystem | Select-Object -First 1
+$dCs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
 $q.Enqueue('DASH|os|' + $dOs.Caption + ' build ' + $dOs.BuildNumber)
 $dH = @(Get-PhysicalDisk | Where-Object { $_.HealthStatus -eq 'Healthy' }).Count
 $dT = @(Get-PhysicalDisk).Count

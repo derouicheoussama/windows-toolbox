@@ -1,7 +1,7 @@
 {
     "version":  "2.9.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "40DFA8FA3190F990D1B409CD0F0B55AC3C4C808B25064D88C17BB9F6B8FAD1F8",
+    "sha256":  "66B7423EFE6BFAC44296E3902434BDD0BE58F4A0CBAF11CE79A14B61381BE7DE",
     "notes":  "v2.9.0 : pack essentiels winget 1-clic, mode technicien, tableau de bord sante, nettoyage planifie, gestionnaire demarrage avance, analyse stockage (doublons + gros fichiers).",
     "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
     "date":  "2026-10-28",
