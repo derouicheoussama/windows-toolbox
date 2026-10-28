@@ -23,8 +23,10 @@ param(
     [switch]$Checksums,
     [switch]$Exe,
     [switch]$SignPs1,
+    [switch]$SignSetup,
     [string]$SignCert,
-    [string]$CertPassword
+    [string]$CertPassword,
+    [string]$SignStore
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,10 +38,21 @@ if (-not (Test-Path -LiteralPath $scriptFile)) {
 }
 
 function Invoke-SignFile {
-    param([string]$File, [string]$Pfx, [string]$Password)
-    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($Pfx, $Password)
-    $sig = Set-AuthenticodeSignature -FilePath $File -Certificate $cert -TimestampServer 'http://timestamp.digicert.com'
+    param([string]$File, [string]$Pfx, [string]$Password, [string]$StoreSubject)
+    if (-not (Test-Path -LiteralPath $File)) { Write-Host ("  absent : " + $File) -ForegroundColor Red; return }
+    if ($StoreSubject) {
+        # Certum SimplySign : le certificat est dans le magasin Windows (Cert:\CurrentUser\My)
+        $cert = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object { $_.Subject -like "*$StoreSubject*" -and $_.HasPrivateKey } |
+            Sort-Object NotAfter -Descending | Select-Object -First 1
+        if (-not $cert) { Write-Host ("  certificat '$StoreSubject' introuvable dans le magasin") -ForegroundColor Red; return }
+        $sig = Set-AuthenticodeSignature -FilePath $File -Certificate $cert -TimestampServer 'http://timestamp.digicert.com'
+    } else {
+        $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($Pfx, $Password)
+        $sig = Set-AuthenticodeSignature -FilePath $File -Certificate $cert -TimestampServer 'http://timestamp.digicert.com'
+    }
     Write-Host ("  Signature {0} : {1}" -f (Split-Path $File -Leaf), $sig.Status)
+    if ($sig.Status -ne 'Valid') { Write-Host '  ATTENTION : signature non valide.' -ForegroundColor Yellow }
 }
 
 $didSomething = $false
@@ -77,14 +90,22 @@ if ($Exe) {
     Invoke-PS2EXE -inputFile $scriptFile -outputFile $exe -noConsole @icoArg -title 'Windows 11 Toolbox' -description 'Commandes Windows, tests SSD et diagnostics - Infinity Coder' -company 'Derouiche Oussama' -product 'Windows 11 Toolbox' -copyright '(c) Derouiche Oussama - Infinity Coder' -version $ver
     if (Test-Path -LiteralPath $exe) {
         Write-Host (" EXE créé : " + $exe) -ForegroundColor Green
-        if ($SignCert) { Invoke-SignFile -File $exe -Pfx $SignCert -Password $CertPassword }
+        if ($SignCert -or $SignStore) { Invoke-SignFile -File $exe -Pfx $SignCert -Password $CertPassword -StoreSubject $SignStore }
+        $setupExe = Join-Path $PSScriptRoot 'Setup-Toolbox.exe'
+        if ((Test-Path -LiteralPath $setupExe) -and ($SignCert -or $SignStore)) { Invoke-SignFile -File $setupExe -Pfx $SignCert -Password $CertPassword -StoreSubject $SignStore }
     }
 }
 
-# ---------- 3) Signature du script ----------
-if ($SignPs1 -and $SignCert) {
+# ---------- 3) Signature (PFX ou magasin Certum SimplySign) ----------
+if ($SignPs1 -and ($SignCert -or $SignStore)) {
     $didSomething = $true
-    Invoke-SignFile -File $scriptFile -Pfx $SignCert -Password $CertPassword
+    Invoke-SignFile -File $scriptFile -Pfx $SignCert -Password $CertPassword -StoreSubject $SignStore
+}
+
+if ($SignStore -and -not ($Exe -or $SignPs1)) {
+    $didSomething = $true
+    $exe = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
+    Invoke-SignFile -File $exe -StoreSubject $SignStore
 }
 
 Write-Host ''

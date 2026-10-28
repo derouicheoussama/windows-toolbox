@@ -1,7 +1,13 @@
 {
-    "version":  "2.7.0",
+    "version":  "2.8.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "E9846F9E3442091BD1975CB9569F5A7C395F6FADEC463612BF8175B8C899B7FC",
-    "notes":  "v2.7.0 : open source GPL-3.0, rotation historique, redemarrage propre, en-tetes de licence, optimisations.",
-    "license":  "GPL-3.0 (C) 2026 Derouiche Oussama"
+    "sha256":  "944E9763C8582BFBD9CBAC68E2C89785AF798522A65D92476351C26B84071FB4",
+    "notes":  "v2.8.0 : auto-update EXE reel (renommage a chaud), detection antivirus et pare-feu, signature Certum dans le build.",
+    "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
+    "date":  "2026-10-28",
+    "exe":  {
+                "version":  "2.8.0",
+                "url":  "https://github.com/derouicheoussama/windows-toolbox/releases/download/v2.8.0/Windows-Toolbox.exe",
+                "sha256":  "CA52A62D72FACDEA7A40F4DF0F90CF3A51F9D33F77F63CF82859917593E2BD22"
+            }
 }

@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.7.0'
+$script:ToolboxVersion = '2.8.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -376,15 +376,21 @@ function Start-UpdateCheck {
     $ps.Runspace.SessionStateProxy.SetVariable('manifestUrl', $script:UpdateManifestUrl)
     $ps.Runspace.SessionStateProxy.SetVariable('localVer', $script:ToolboxVersion)
     $ps.Runspace.SessionStateProxy.SetVariable('manual', [bool]$Manual)
+    $ps.Runspace.SessionStateProxy.SetVariable('isExe', ($PSCommandPath -like '*.exe'))
     $null = $ps.AddScript(@'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 try {
-  $m = Invoke-RestMethod -Uri $manifestUrl -TimeoutSec 15
+  $m = Invoke-RestMethod -Uri $manifestUrl -TimeoutSec 25
   $rv = $null; $lv = $null
   try { $rv = [version]$m.version } catch { }
   try { $lv = [version]$localVer } catch { }
-  if ($rv -and $lv -and $rv -gt $lv) { $q.Enqueue("UPDATE|$($m.version)|$($m.url)|$($m.sha256)|$($m.notes)") }
-  else { $q.Enqueue("UPDOK|$localVer") }
+  if ($rv -and $lv -and $rv -gt $lv) {
+    if ($isExe -and $m.exe) {
+      $q.Enqueue("UPDATE|$($m.exe.version)|$($m.exe.url)|$($m.exe.sha256)|$($m.notes)")
+    } else {
+      $q.Enqueue("UPDATE|$($m.version)|$($m.url)|$($m.sha256)|$($m.notes)")
+    }
+  } else { $q.Enqueue("UPDOK|$localVer") }
 } catch {
   if ($manual) { $q.Enqueue("UPDERR|$($_.Exception.Message)") }
 }
@@ -415,9 +421,22 @@ function Start-UpdateInstall {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 try {
   if ($isExe) {
-    $tmp = "$dest.$newVer.exe"
-    Invoke-WebRequest -Uri $dlUrl -OutFile $tmp -TimeoutSec 300 -UseBasicParsing
-    $q.Enqueue("UPDDONE-EXE|$newVer|$tmp")
+    # Auto-update EXE : telechargement memoire + verification SHA256 + bascule par renommage
+    $newExe = "$dest.update"
+    $resp = Invoke-WebRequest -Uri $dlUrl -UseBasicParsing -TimeoutSec 600
+    $bytes = $resp.Content
+    if ($dlHash) {
+      $sha = [System.Security.Cryptography.SHA256]::Create()
+      $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
+      $sha.Dispose()
+      if ($got -ne $dlHash) {
+        $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — installation refusée (sécurité).')
+        return
+      }
+      $q.Enqueue('[MAJ] Empreinte SHA256 du nouvel EXE vérifiée OK')
+    }
+    [IO.File]::WriteAllBytes($newExe, $bytes)
+    $q.Enqueue("EXEREADY|$newExe|$newVer")
   } else {
     # Téléchargement EN MÉMOIRE : l'empreinte SHA256 est vérifiée avant
     # la moindre écriture disque (aucun fichier non vérifié ne touche le PC).
@@ -1128,6 +1147,11 @@ Get-PhysicalDisk | ForEach-Object { '{0} ({1}) : {2}' -f $_.FriendlyName, $_.Med
 $crit = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Level = 1, 2; StartTime = (Get-Date).AddDays(-7) } -ErrorAction SilentlyContinue)
 if ($crit.Count -gt 0) { '{0} erreur(s)/critique(s) — détail : onglet ⚡ « 25 derniers événements système »' -f $crit.Count } else { 'Aucune erreur critique — OK' }
 ''
+'--- Antivirus ---'
+try {
+  Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | ForEach-Object { 'AV actif : {0}' -f $_.displayName }
+} catch { 'AV : non lisible sur ce PC.' }
+''
 '--- Temps du dernier démarrage ---'
 try {
   $b = Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'; Id = 100 } -MaxEvents 1 -ErrorAction Stop
@@ -1720,6 +1744,21 @@ Start-Process "https://opentip.kaspersky.com/"
 'Le scan multi-moteurs est lancé dans ton navigateur.'
 '@
 
+$script:CmdAvDetect = @'
+'=== ANTIVIRUS INSTALLÉ (centre de sécurité Windows) ==='
+try {
+  $avs = Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop
+  if ($avs) {
+    $avs | ForEach-Object { 'AV : {0}' -f $_.displayName }
+  } else { 'Aucun antivirus déclaré au centre de sécurité.' }
+} catch { 'Non lisible : ' + $_.Exception.Message }
+''
+'=== PARE-FEU ==='
+try {
+  Get-NetFirewallProfile -ErrorAction Stop | ForEach-Object { '{0} : {1}' -f $_.Name, $(if ($_.Enabled) { 'Activé' } else { 'Désactivé' }) }
+} catch { 'Profils pare-feu non lisibles.' }
+'@
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -2061,6 +2100,7 @@ function Show-Toolbox {
     Add-CmdButton $tabSystem 'Inventaire matériel COMPLET (carte mère, RAM, GPU…)' -Script $script:CmdHwFull -Desc 'Carte mère, BIOS, CPU, RAM + slots libres, GPU, disques, réseau, audio, USB, batterie, écrans'
     Add-CmdButton $tabSystem 'Carte mère & BIOS (modèle, version, UUID)' -Script $script:CmdMotherboard
     Add-CmdButton $tabSystem 'RAM : barrettes & slots libres' -Script $script:CmdRamSlots -Desc 'Sait combien d''emplacements physiques sont encore libres'
+    Add-CmdButton $tabSystem 'Antivirus & pare-feu installés (détection)' -Script $script:CmdAvDetect -Desc 'Détecte quel antivirus protège le PC (utile après le Message Kaspersky)'
 
     Add-Section $tabSystem 'Réparation & intégrité (admin)'
     Add-CmdButton $tabSystem 'SFC — vérifier les fichiers système (sfc /scannow)' -Kind 'Elevated' -Script 'sfc /scannow' -Desc 'Répare les fichiers système corrompus (~10 min)'
@@ -2722,12 +2762,26 @@ function Show-Toolbox {
                     Append-Console ('[MAJ] Échec : ' + $line.Substring(8))
                     [Windows.Forms.MessageBox]::Show($script:Form, $line.Substring(8), 'Mise à jour', 'OK', 'Warning') | Out-Null
                 }
-                elseif ($line -like 'UPDDONE-EXE|*') {
-                    $p = $line -split '\|', 3
-                    Append-Console ("[MAJ] Nouvelle version {0} téléchargée : {1} — lance ce nouveau fichier." -f $p[1], $p[2])
-                    [Windows.Forms.MessageBox]::Show($script:Form, "Nouvelle version téléchargée :`r`n$($p[2])`r`n`r`nLance ce nouveau fichier pour l'utiliser.", 'Mise à jour installée', 'OK', 'Information') | Out-Null
+            elseif ($line -like 'EXEREADY|*') {
+                $p = $line -split '\|', 3
+                $newExe = $p[1]; $newVer = $p[2]
+                $r = [Windows.Forms.MessageBox]::Show($script:Form, "Version $newVer téléchargée et vérifiée.`r`n`r`nRemplacer l'application et redémarrer maintenant ?", 'Mise à jour', 'YesNo', 'Question')
+                if ($r -eq [Windows.Forms.DialogResult]::Yes) {
+                    try {
+                        $oldExe = "$PSCommandPath.old"
+                        Move-Item -Force -Path $PSCommandPath -Destination $oldExe
+                        Move-Item -Force -Path $newExe -Destination $PSCommandPath
+                        Start-Process -FilePath $PSCommandPath
+                        $script:Form.Close()
+                        return
+                    } catch {
+                        Append-Console ('[MAJ] Bascule impossible : ' + $_.Exception.Message + ' — le nouvel EXE reste disponible : ' + $newExe)
+                    }
+                } else {
+                    Append-Console ('[MAJ] Nouvel EXE conservé pour plus tard : ' + $newExe)
                 }
-                elseif ($line -like 'UPDDONE|*') {
+            }
+            elseif ($line -like 'UPDDONE|*') {
                     $p = $line -split '\|', 2
                     Append-Console ("[MAJ] Version {0} installée ✓" -f $p[1])
                     $sumFile = Join-Path $script:ScriptDir 'checksums.txt'
