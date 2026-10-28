@@ -1,14 +1,14 @@
 {
   "schemaVersion": "mimosa-hook-status/v1",
-  "recordedAt": "2026-10-28T13:07:33.870Z",
+  "recordedAt": "2026-10-28T13:12:20.728Z",
   "sessionId": "sess_406f16e3-e576-40c2-8ff6-631f6ea97b12",
   "event": "PostToolUse",
   "toolName": "Edit",
-  "file": "Windows-Toolbox.ps1",
+  "file": "README.md",
   "outcome": "clear",
   "coverage": "complete",
   "findingCount": 0,
-  "durationMs": 4,
+  "durationMs": 2,
   "hostState": "hook_complete",
   "reportHint": ".mimosa/reports/"
 }
