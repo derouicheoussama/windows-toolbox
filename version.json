@@ -1,8 +1,8 @@
 {
-    "version":  "2.8.0",
+    "version":  "2.9.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "944E9763C8582BFBD9CBAC68E2C89785AF798522A65D92476351C26B84071FB4",
-    "notes":  "v2.8.0 : auto-update EXE reel (renommage a chaud), detection antivirus et pare-feu, signature Certum dans le build.",
+    "sha256":  "40DFA8FA3190F990D1B409CD0F0B55AC3C4C808B25064D88C17BB9F6B8FAD1F8",
+    "notes":  "v2.9.0 : pack essentiels winget 1-clic, mode technicien, tableau de bord sante, nettoyage planifie, gestionnaire demarrage avance, analyse stockage (doublons + gros fichiers).",
     "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
     "date":  "2026-10-28",
     "exe":  {

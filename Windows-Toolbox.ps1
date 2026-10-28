@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '2.8.0'
+$script:ToolboxVersion = '2.9.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -304,6 +304,7 @@ function Start-InlineCommand {
     $ps.Runspace.SessionStateProxy.SetVariable('q', $sync.Queue)
     $ps.Runspace.SessionStateProxy.SetVariable('sc', $script:SmartCtl)
     $ps.Runspace.SessionStateProxy.SetVariable('sd', $script:ScriptDir)
+    $ps.Runspace.SessionStateProxy.SetVariable('cleanAll', $script:CmdCleanAll)
     if ($Stream) {
         # Mode flux : chaque ligne s'affiche en direct dans la console (longues commandes type winget)
         $null = $ps.AddScript('param($code) try { Invoke-Expression -Command $code 2>&1 | ForEach-Object { $line = ([string]$_) -replace "`r", ""; if ($line.Trim().Length -gt 0) { $q.Enqueue($line) } } } catch { $q.Enqueue("[ERREUR] " + $_.Exception.Message) }')
@@ -1728,8 +1729,7 @@ $sticks | ForEach-Object {
 '@
 
 $script:CmdFpHelp = @'
-'=== ANTIVIRUS — FAUX POSITIF ? ==='
-'Cet outil enchaîne des commandes d''administration légitimes (SFC, DISM, registre,'
+'=== ANTIVIRUS — FAUX POSITIF ? ===''Cet outil enchaîne des commandes d''administration légitimes (SFC, DISM, registre,'
 'planificateur, téléchargements vérifiés SHA256) que les heuristiques peuvent'
 'confondre avec un malware. C''est un FAUX POSITIF — le code source est public :'
 '  https://github.com/derouicheoussama/windows-toolbox
@@ -1757,6 +1757,122 @@ try {
 try {
   Get-NetFirewallProfile -ErrorAction Stop | ForEach-Object { '{0} : {1}' -f $_.Name, $(if ($_.Enabled) { 'Activé' } else { 'Désactivé' }) }
 } catch { 'Profils pare-feu non lisibles.' }
+'@
+
+# ---------------- Fonctionnalités v2.9 ----------------
+
+$script:CmdEssentialPack = @'
+'=== INSTALLATION DU PACK ESSENTIEL (winget) ==='
+$ids = @('CrystalMark.CrystalDiskInfo', 'CPUID.HWiNFO', 'voidtools.Everything', 'Notepad++.Notepad++')
+foreach ($id in $ids) {
+  ''
+  '=== Installation de {0} ===' -f $id
+  winget install --id $id --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1 | Select-Object -Last 3
+}
+''
+'PACK ESSENTIEL TERMINE — relance la toolbox pour la detection automatique des outils.'
+'@
+
+$script:CmdWingetOne = { param($Id) winget install --id $Id --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1 | Select-Object -Last 3 }
+
+$script:CmdTechReport = @'
+$out = Join-Path ([Environment]::GetFolderPath('Desktop')) ('rapport-technicien-' + $env:COMPUTERNAME + '-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.txt')
+$r = New-Object System.Collections.Generic.List[string]
+function A([string]$s) { $r.Add($s) }
+A ('=' * 60)
+A (' RAPPORT TECHNICIEN — ' + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+A ('=' * 60)
+$os = Get-CimInstance Win32_OperatingSystem
+$cs = Get-CimInstance Win32_ComputerSystem
+$up = (Get-Date) - $os.LastBootUpTime
+A ('Machine  : {0} {1}' -f $cs.Manufacturer, $cs.Model)
+A ('Windows  : {0} build {1}' -f $os.Caption, $os.BuildNumber)
+A ('Allume   : {0} j {1} h' -f $up.Days, $up.Hours)
+A ''
+A '[DISQUES]'
+Get-PhysicalDisk | ForEach-Object { A ('  {0} - {1:N0} Go - {2} - sante {3}' -f $_.FriendlyName, ($_.Size/1GB), $_.MediaType, $_.HealthStatus) }
+Get-Volume | Where-Object { $_.DriveLetter } | ForEach-Object { A ('  {0}: {1:N0} Go total, {2:N1} Go libres' -f $_.DriveLetter, ($_.Size/1GB), ($_.SizeRemaining/1GB)) }
+A ''
+A '[RAM]'
+A ('  {0:N1} Go - {1} barrette(s)' -f ($cs.TotalPhysicalMemory/1GB), @(Get-CimInstance Win32_PhysicalMemory).Count)
+A ''
+A '[PLANTAGES 90 JOURS]'
+$cr = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 41, 6008; StartTime = (Get-Date).AddDays(-90) } -ErrorAction SilentlyContinue)
+A ('  {0} arret(s) inattendu(s)' -f $cr.Count)
+A ''
+A '[ERREURS SYSTEME 7 JOURS]'
+$crit = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Level = 1, 2; StartTime = (Get-Date).AddDays(-7) } -ErrorAction SilentlyContinue)
+A ('  {0} erreur(s)/critique(s)' -f $crit.Count)
+A ''
+A '[DEMARRAGE]'
+A ('  {0} app(s) au demarrage' -f @(Get-CimInstance Win32_StartupCommand).Count)
+A ''
+A '[ANTIVIRUS]'
+try { Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | ForEach-Object { A ('  ' + $_.displayName) } } catch { A '  non lisible' }
+A ''
+A '[BATTERIE]'
+$bat = Get-CimInstance Win32_Battery
+if ($bat) { A ('  {0} %' -f $bat.EstimatedChargeRemaining) } else { A '  fixe' }
+A ''
+A ('=' * 60)
+[IO.File]::WriteAllLines($out, $r)
+A ('RAPPORT ENREGISTRE : ' + $out)
+$r
+Start-Process notepad.exe $out
+'@
+
+$script:CmdStartupDetail = @'
+'=== DEMARRAGE — REGISTRE HKCU Run ==='
+$k = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue
+if ($k) { $k.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' } | ForEach-Object { '[HKCU] {0} = {1}' -f $_.Name, $_.Value } }
+'=== REGISTRE HKLM Run ==='
+$k = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue
+if ($k) { $k.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' } | ForEach-Object { '[HKLM] {0} = {1}' -f $_.Name, $_.Value } }
+'=== DOSSIER DEMARRAGE ==='
+Get-ChildItem ([Environment]::GetFolderPath('Startup')) -ErrorAction SilentlyContinue | ForEach-Object { '  ' + $_.Name }
+''
+'-> Pour desactiver : copie le nom exact puis bouton « Desactiver une app au demarrage ».'
+'@
+
+$script:CmdStartupDisable = @'
+$name = [Microsoft.VisualBasic.Interaction]::InputBox('Nom EXACT de l''entree a desactiver (voir la liste)', 'Desactiver au demarrage')
+if (-not $name) { 'Annule.'; return }
+$bk = Join-Path ([Environment]::GetFolderPath('Desktop')) ('sauvegarde-demarrage-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.reg')
+reg export 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' $bk /y 2>$null
+$k = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$prop = (Get-ItemProperty $k -ErrorAction SilentlyContinue).PSObject.Properties | Where-Object { $_.Name -eq $name }
+if ($prop) {
+  Remove-ItemProperty -Path $k -Name $name
+  'Desactive (sauvegarde : ' + $bk + ')'
+} else {
+  'Entree introuvable dans HKCU Run — regarde le nom exact dans la liste.'
+}
+'@
+
+$script:CmdBigFilesAll = @'
+'Top 30 des plus gros fichiers des disques fixes (2-5 min)…'
+''
+$drives = (Get-Volume | Where-Object { $_.DriveLetter -and $_.DriveType -eq 'Fixed' }).DriveLetter | ForEach-Object { "$_`:\" }
+Get-ChildItem $drives -Recurse -File -Force -ErrorAction SilentlyContinue |
+  Sort-Object Length -Descending | Select-Object -First 30 |
+  ForEach-Object { '{0,10:N1} Go  {1}' -f ($_.Length/1GB), $_.FullName }
+'@
+
+$script:CmdDupFiles = @'
+'Doublons dans ton profil (meme nom + meme taille) :'
+''
+$groups = Get-ChildItem $env:USERPROFILE -Recurse -File -Force -ErrorAction SilentlyContinue |
+  Group-Object { $_.Name + '|' + $_.Length } |
+  Where-Object { $_.Count -gt 1 } |
+  Sort-Object Count -Descending | Select-Object -First 15
+if ($groups) {
+  foreach ($g in $groups) {
+    'DOUBLON x{0} : {1}' -f $g.Count, $g.Group[0].Name
+    $g.Group | ForEach-Object { '    ' + $_.FullName }
+    ''
+  }
+  '→ Garde un exemplaire, supprime les autres (verifie avant !).'
+} else { 'Aucun doublon detecte.' }
 '@
 
 function Show-ScreenTest {
@@ -2027,6 +2143,27 @@ function Show-Toolbox {
     $tabAbout  = $tabs.TabPages[10]
     $script:TabFav = $tabFav
 
+    # ---------- Bandeau santé (tableau de bord d'accueil, v2.9) ----------
+    $strip = New-Object Windows.Forms.Panel
+    $strip.Dock = 'Top'
+    $strip.Height = 76
+    $strip.BackColor = [Drawing.Color]::White
+    $tabSystem.Controls.Add($strip)
+    $script:DashLabels = @{}
+    $i = 0
+    foreach ($k in @('os', 'disk', 'ram', 'av', 'maj')) {
+        $dl = New-Object Windows.Forms.Label
+        $dl.AutoSize = $false
+        $dl.Size = New-Object Drawing.Size(186, 52)
+        $dl.Location = New-Object Drawing.Point(14 + $i * 190, 10)
+        $dl.Font = New-Object Drawing.Font('Segoe UI', 9)
+        $dl.ForeColor = [Drawing.Color]::FromArgb(75, 85, 99)
+        $dl.Text = $k + ' : analyse…'
+        $strip.Controls.Add($dl)
+        $script:DashLabels[$k] = $dl
+        $i++
+    }
+
     function Add-Section {
         param($Parent, [string]$Text)
         $l = New-Object Windows.Forms.Label
@@ -2293,6 +2430,10 @@ function Show-Toolbox {
     Add-CmdButton $tabClean 'Mesurer : fichiers temporaires & caches (lecture seule)' -Script $script:CmdCleanMeasure -Desc 'Taille de chaque zone nettoyable avant d''agir'
     Add-CmdButton $tabClean 'Top 20 des plus gros fichiers de ton profil' -Script $script:CmdBigFiles -Desc 'Trouve ce qui remplit le disque (30-60 s)'
 
+    Add-Section $tabClean 'Analyse de stockage'
+    Add-CmdButton $tabClean 'Top 30 des plus gros fichiers (tous disques, 2-5 min)' -Stream -Script $script:CmdBigFilesAll
+    Add-CmdButton $tabClean 'Fichiers en doublons de ton profil (nom + taille)' -Stream -Script $script:CmdDupFiles -Desc 'Heuristique nom+taille : verifie avant de supprimer'
+
     Add-Section $tabClean 'Nettoyage — sans risque'
     Add-CmdButton $tabClean 'Nettoyer les fichiers temporaires utilisateur (%TEMP%)' -Script $script:CmdCleanUserTemp -Desc 'Fichiers en cours d''utilisation ignorés automatiquement'
     Add-CmdButton $tabClean 'Nettoyer les fichiers temporaires Windows (admin)' -Kind 'Elevated' -Script $script:CmdCleanWinTemp
@@ -2307,6 +2448,10 @@ function Show-Toolbox {
     Add-Section $tabClean 'Accélérer Windows'
     Add-CmdButton $tabClean 'Redémarrer l''Explorateur Windows (bureau lent)' -Script $script:CmdRestartExplorer -Desc 'La barre des tâches clignote puis revient — répare les lenteurs d''affichage'
     Add-CmdButton $tabClean 'Lister les applications au démarrage' -Script $script:CmdStartupList
+    Add-CmdButton $tabClean 'Démarrage : détail registre (HKCU + HKLM + dossier)' -Script $script:CmdStartupDetail
+    Add-CmdButton $tabClean 'Désactiver une app au démarrage (sauvegarde .reg)' -Script $script:CmdStartupDisable -Desc 'Sauvegarde la clé Run sur le Bureau puis retire l''entrée'
+    Add-CmdButton $tabClean 'NETTOYAGE AUTOMATIQUE chaque dimanche à 09h00 (crée la tâche)' -Stream -Script '$d = Join-Path $env:LOCALAPPDATA "WindowsToolbox"; New-Item -ItemType Directory -Force -Path $d | Out-Null; $s = Join-Path $d "Nettoyage-Auto.ps1"; [IO.File]::WriteAllText($s, $cleanAll, (New-Object System.Text.UTF8Encoding $false)); schtasks /create /f /tn "WindowsToolboxClean" /sc WEEKLY /d SUN /st 09:00 /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$s`"" 2>&1 | Out-Null; "Tâche planifiée créée : nettoyage chaque dimanche à 09h00 (script : " + $s + ")."' -Desc 'Crée la tâche planifiée hebdomadaire (Nettoyage-Auto.ps1 silencieux)'
+    Add-CmdButton $tabClean 'Supprimer la tâche de nettoyage automatique' -Stream -Script 'schtasks /delete /tn "WindowsToolboxClean" /f 2>&1 | Out-Null; "Tâche planifiée WindowsToolboxClean supprimée."'
     Add-CmdButton $tabClean 'Activer le plan Haute performance' -Script $script:CmdHighPerf
     Add-CmdButton $tabClean 'Revenir au plan Équilibré' -Script $script:CmdBalanced
     Add-CmdButton $tabClean 'Désactiver l''hibernation — libère hiberfil.sys (admin)' -Kind 'Elevated' -Script $script:CmdHibernateOff -Desc 'Souvent 4-16 Go récupérés sur C: — parfait sur un PC fixe'
@@ -2349,6 +2494,9 @@ function Show-Toolbox {
     Add-Section $tabBuy 'PC PORTABLE — entrées & son'
     Add-CmdButton $tabBuy 'Touchpad & souris (périphériques de pointage)' -Script $script:CmdTouchpad
     Add-CmdButton $tabBuy 'Tester le micro (Paramètres son — entrée)' -Kind 'Gui' -Target 'ms-settings:sound'
+
+    Add-Section $tabBuy 'Mode technicien'
+    Add-CmdButton $tabBuy 'RAPPORT TECHNICIEN complet (.txt sur le Bureau)' -Script $script:CmdTechReport -Desc 'Machine, disques, RAM, plantages, erreurs, demarrage, antivirus — pret a envoyer au client'
 
     Add-Section $tabBuy 'Conseils achat'
     $tip = New-Object Windows.Forms.Label
@@ -2474,6 +2622,12 @@ function Show-Toolbox {
     $tabQuick.Controls.Add($kbd)
 
     # ================= Onglet Outils tiers =================
+    Add-Section $tabTools 'Installer les outils essentiels (winget)'
+    Add-CmdButton $tabTools 'PACK ESSENTIEL : CrystalDiskInfo + HWiNFO + Everything + Notepad++' -Stream -Script $script:CmdEssentialPack -Desc 'Les 4 outils de diagnostic indispensables, installes en chaine'
+    Add-CmdButton $tabTools 'Installer CrystalDiskInfo (sante SSD)' -Stream -Script 'winget install --id CrystalMark.CrystalDiskInfo --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1 | Select-Object -Last 3'
+    Add-CmdButton $tabTools 'Installer HWiNFO (capteurs)' -Stream -Script 'winget install --id CPUID.HWiNFO --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1 | Select-Object -Last 3'
+    Add-CmdButton $tabTools 'Installer Everything (recherche instantanee)' -Stream -Script 'winget install --id voidtools.Everything --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1 | Select-Object -Last 3'
+
     Add-Section $tabTools ('Détectés sur ce PC ({0})' -f ($script:DetectedTools.Count + $script:PortableTools.Count))
     if ($script:PortableTools.Count -gt 0) {
         foreach ($pt in $script:PortableTools) {
@@ -2797,7 +2951,13 @@ function Show-Toolbox {
                         $script:Form.Close()
                     }
                 }
-                else { Append-Console $line }
+                elseif ($line -like 'DASH|*') {
+                $p = $line -split '\|', 3
+                if ($p.Count -ge 3 -and $script:DashLabels.ContainsKey($p[1])) {
+                    $script:DashLabels[$p[1]].Text = $p[1].ToUpper() + ' : ' + $p[2]
+                }
+            }
+            else { Append-Console $line }
             }
             if ($script:Handle -and $script:Handle.IsCompleted) {
                 try { $null = $script:PS.EndInvoke($script:Handle) }
@@ -2818,7 +2978,20 @@ function Show-Toolbox {
 
     $form.Add_Shown({
         $script:PendingAutoUpdate = $true
-        Start-InlineCommand -Title 'Inventaire rapide (automatique)' -Script ($script:CmdSummary + "`r`n" + $script:CmdDiskHealth)
+        Start-InlineCommand -Title 'Inventaire rapide (automatique)' -Script ($script:CmdSummary + "`r`n" + $script:CmdDiskHealth + @'
+
+'--- TABLEAU DE BORD ---'
+$dOs = Get-CimInstance Win32_OperatingSystem
+$dCs = Get-CimInstance Win32_ComputerSystem
+$q.Enqueue('DASH|os|' + $dOs.Caption + ' build ' + $dOs.BuildNumber)
+$dH = @(Get-PhysicalDisk | Where-Object { $_.HealthStatus -eq 'Healthy' }).Count
+$dT = @(Get-PhysicalDisk).Count
+$q.Enqueue('DASH|disk|' + "$dH/$tot disques sains")
+$q.Enqueue('DASH|ram|' + ('{0:N0} Go libres sur {1:N0}' -f ($dOs.FreePhysicalMemory*1KB/1GB), ($dCs.TotalPhysicalMemory/1GB)))
+try { $dAv = (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | Select-Object -First 1).displayName; $q.Enqueue('DASH|av|' + $dAv) } catch { $q.Enqueue('DASH|av|non detecte') }
+$dHf = Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 1
+if ($dHf -and $dHf.InstalledOn) { $q.Enqueue('DASH|maj|du ' + $dHf.InstalledOn.ToString('yyyy-MM-dd')) } else { $q.Enqueue('DASH|maj|inconnue') }
+'@)
     })
 
     $form.Add_FormClosed({
