@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '3.0.0'
+$script:ToolboxVersion = '3.1.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -2083,8 +2083,8 @@ function Show-KeyboardTest {
 function Show-Toolbox {
     $form = New-Object WindowsToolbox.HotkeyForm
     $form.Text          = "Windows 11 Toolbox v$script:ToolboxVersion — Commandes · SSD · Diagnostics"
-    $form.Size          = New-Object Drawing.Size(1016, 800)
-    $form.MinimumSize   = New-Object Drawing.Size(920, 640)
+    $form.Size          = New-Object Drawing.Size(1080, 820)
+    $form.MinimumSize   = New-Object Drawing.Size(1024, 680)
     $form.StartPosition = 'CenterScreen'
     $form.Font          = New-Object Drawing.Font('Segoe UI', 9.75)
     $form.Icon          = [System.Drawing.SystemIcons]::Shield
@@ -2113,17 +2113,24 @@ function Show-Toolbox {
     $subtitle.Location = New-Object Drawing.Point(19, 38)
     $top.Controls.Add($subtitle)
 
-    $lblSearch = New-Object Windows.Forms.Label
-    $lblSearch.Text = 'Rechercher :'
-    $lblSearch.AutoSize = $true
-    $lblSearch.Location = New-Object Drawing.Point(252, 20)
-    $top.Controls.Add($lblSearch)
-
     $txtSearch = New-Object Windows.Forms.TextBox
     $txtSearch.Location = New-Object Drawing.Point(276, 16)
     $txtSearch.Size = New-Object Drawing.Size(212, 26)
     $script:SearchBox = $txtSearch
     $script:Tooltip.SetToolTip($txtSearch, 'Filtre les 250+ commandes en direct — Effacer : Échap')
+    if (-not ('WindowsToolbox.Cue' -as [type])) {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+namespace WindowsToolbox {
+    public static class Cue {
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int SendMessage(IntPtr hWnd, int msg, int wParam, string lParam);
+    }
+}
+"@
+    }
+    [void][WindowsToolbox.Cue]::SendMessage($txtSearch.Handle, 0x1501, 1, 'Rechercher une commande…')
     $txtSearch.Add_TextChanged({
         try {
             $q = $script:SearchBox.Text.Trim().ToLower()
@@ -2265,7 +2272,7 @@ function Show-Toolbox {
     # ---------- Onglets ----------
     $tabs = New-Object Windows.Forms.TabControl
     $tabs.Dock = 'Fill'
-    foreach ($spec in @(@('Système', '🖥'), @('Disques & SSD', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Favoris', '⭐'), @('Monitoring', '📊'), @('À propos', 'ℹ'))) {
+    foreach ($spec in @(@('Système', '🖥'), @('Disques', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Favoris', '⭐'), @('Monitoring', '📊'), @('À propos', 'ℹ'))) {
         $page = New-Object Windows.Forms.TabPage
         $page.Text = ("{0} {1}" -f $spec[1], $spec[0])
         $page.UseVisualStyleBackColor = $true
@@ -2291,25 +2298,35 @@ function Show-Toolbox {
     $script:TabFav = $tabFav
 
     # ---------- Bandeau santé (tableau de bord d'accueil, v2.9) ----------
-    $strip = New-Object Windows.Forms.Panel
+    $strip = New-Object Windows.Forms.TableLayoutPanel
     $strip.Dock = 'Top'
     $strip.Height = 76
     $strip.BackColor = [Drawing.Color]::White
+    $strip.ColumnCount = 5
+    $strip.RowCount = 1
+    1..5 | ForEach-Object { $strip.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle([Windows.Forms.SizeType]::Percent, 20))) }
+    $strip.CellBorderStyle = 'Single'
     $tabs.TabPages[0].Controls.Add($strip)
     $script:DashLabels = @{}
-    $i = 0
     foreach ($k in @('os', 'disk', 'ram', 'av', 'maj')) {
-        $dl = New-Object Windows.Forms.Label
-        $dl.AutoSize = $false
-        $dl.Size = New-Object Drawing.Size(186, 52)
-        $px = 14 + $i * 190
-        $dl.Location = New-Object Drawing.Point($px, 10)
-        $dl.Font = New-Object Drawing.Font('Segoe UI', 9)
-        $dl.ForeColor = [Drawing.Color]::FromArgb(75, 85, 99)
-        $dl.Text = $k + ' : analyse…'
-        $strip.Controls.Add($dl)
-        $script:DashLabels[$k] = $dl
-        $i++
+        $cell = New-Object Windows.Forms.Panel
+        $cell.Dock = 'Fill'
+        $cell.BackColor = [Drawing.Color]::White
+        $kt = New-Object Windows.Forms.Label
+        $kt.Text = $k.ToUpper()
+        $kt.Font = New-Object Drawing.Font('Segoe UI', 8)
+        $kt.ForeColor = [Drawing.Color]::FromArgb(37, 99, 235)
+        $kt.Dock = 'Top'
+        $kt.Height = 18
+        $vl = New-Object Windows.Forms.Label
+        $vl.Text = '…'
+        $vl.Font = New-Object Drawing.Font('Segoe UI', 9, [Drawing.FontStyle]::Bold)
+        $vl.ForeColor = [Drawing.Color]::FromArgb(31, 41, 55)
+        $vl.Dock = 'Fill'
+        $cell.Controls.Add($vl)
+        $cell.Controls.Add($kt)
+        $strip.Controls.Add($cell)
+        $script:DashLabels[$k] = $vl
     }
 
     function Add-Section {
