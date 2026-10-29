@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '3.1.0'
+$script:ToolboxVersion = '3.2.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -2084,7 +2084,8 @@ function Show-Toolbox {
     $form = New-Object WindowsToolbox.HotkeyForm
     $form.Text          = "Windows 11 Toolbox v$script:ToolboxVersion — Commandes · SSD · Diagnostics"
     $form.Size          = New-Object Drawing.Size(1080, 820)
-    $form.MinimumSize   = New-Object Drawing.Size(1024, 680)
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
     $form.StartPosition = 'CenterScreen'
     $form.Font          = New-Object Drawing.Font('Segoe UI', 9.75)
     $form.Icon          = [System.Drawing.SystemIcons]::Shield

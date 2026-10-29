@@ -1,8 +1,8 @@
 {
-    "version":  "3.0.0",
+    "version":  "3.2.0",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "207C4F9C30C76FF822EB2B8D239746E6A81D133A96DE0CDF153FA3004D18852C",
-    "notes":  "v3.0.0 : onglet Monitoring - surveillance temps reel CPU/RAM/disque/reseau, journal CSV, capteurs GPU/thermiques, chronologie alertes, photos systeme avant/apres.",
+    "sha256":  "44392AD3CB1D7A44BB616F7E0029AA38907016122FEDB47B02B566FD54884D55",
+    "notes":  "v3.2.0 : fenetre a taille fixe verrouillee - zero deformation garantie a toute resolution.",
     "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
     "date":  "2026-10-28",
     "exe":  {
