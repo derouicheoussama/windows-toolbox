@@ -1,13 +1,13 @@
 {
-    "version":  "3.2.1",
+    "version":  "3.2.2",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "7F50140E58BC100D4E57C33A49CCE6ADF0A9311723F8A7E2904A410243A8120B",
-    "notes":  "v3.2.1 : fix demarrage EXE compile (ScriptDir ps2exe) + gardes anti-null chemins.",
+    "sha256":  "0AFA3FB66C0B0B04BB4441977D5CDE8BF5814EBCA808C6EA5FC2D76524F03333",
+    "notes":  "v3.2.2 : correctif du telechargeur de mise a jour (octets bruts WebClient, plus d erreur de conversion buffer).",
     "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
     "date":  "2026-10-28",
     "exe":  {
-                "version":  "3.0.0",
-                "url":  "https://github.com/derouicheoussama/windows-toolbox/releases/download/v3.0.0/Windows-Toolbox.exe",
-                "sha256":  "4C9C6142880A83616B4ABC1A90E753176BA8EC939C6502D8D5D70D9B9C9900DB"
+                "version":  "3.2.2",
+                "url":  "https://github.com/derouicheoussama/windows-toolbox/releases/download/v3.2.2/Windows-Toolbox.exe",
+                "sha256":  "BE11928F71E8861417C5D33639DA289A4582659F500554BC875871D8665E7A85"
             }
 }

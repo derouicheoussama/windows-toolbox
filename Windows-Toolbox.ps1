@@ -426,9 +426,11 @@ function Start-UpdateInstall {
 try {
   if ($isExe) {
     # Auto-update EXE : telechargement memoire + verification SHA256 + bascule par renommage
+    # Auto-update EXE : telechargement en OCTETS bruts (WebClient) + verification SHA256 + bascule par renommage
     $newExe = "$dest.update"
-    $resp = Invoke-WebRequest -Uri $dlUrl -UseBasicParsing -TimeoutSec 600
-    $bytes = $resp.Content
+    $wcDL = New-Object System.Net.WebClient
+    $bytes = $wcDL.DownloadData($dlUrl)
+    $wcDL.Dispose()
     if ($dlHash) {
       $sha = [System.Security.Cryptography.SHA256]::Create()
       $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
@@ -445,8 +447,9 @@ try {
     # Téléchargement EN MÉMOIRE : l'empreinte SHA256 est vérifiée avant
     # la moindre écriture disque (aucun fichier non vérifié ne touche le PC).
     $tmp = "$dest.update"
-    $resp = Invoke-WebRequest -Uri $dlUrl -UseBasicParsing -TimeoutSec 300
-    $bytes = $resp.Content
+    $wcDL = New-Object System.Net.WebClient
+    $bytes = $wcDL.DownloadData($dlUrl)
+    $wcDL.Dispose()
     if ($dlHash) {
       $sha = [System.Security.Cryptography.SHA256]::Create()
       $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
