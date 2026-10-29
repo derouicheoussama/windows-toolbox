@@ -1,8 +1,8 @@
 {
-    "version":  "3.2.0",
+    "version":  "3.2.1",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "44392AD3CB1D7A44BB616F7E0029AA38907016122FEDB47B02B566FD54884D55",
-    "notes":  "v3.2.0 : fenetre a taille fixe verrouillee - zero deformation garantie a toute resolution.",
+    "sha256":  "7F50140E58BC100D4E57C33A49CCE6ADF0A9311723F8A7E2904A410243A8120B",
+    "notes":  "v3.2.1 : fix demarrage EXE compile (ScriptDir ps2exe) + gardes anti-null chemins.",
     "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
     "date":  "2026-10-28",
     "exe":  {

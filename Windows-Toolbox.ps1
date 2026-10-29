@@ -43,8 +43,11 @@ $script:AuthorTikTok = 'https://www.tiktok.com/@derouiche.oussama'
 # sur le dépôt GitHub ci-dessous (voir README, section « Mises à jour »)
 # ----------------------------------------------------------------
 $script:UpdateManifestUrl = 'https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/version.json'
-$script:ScriptDir      = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$script:ToolsDir       = Join-Path $script:ScriptDir 'tools'
+$script:ScriptDir = if ($PSScriptRoot) { $PSScriptRoot }
+                    elseif ($PSCommandPath) { Split-Path -Parent $PSCommandPath }
+                    elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path }
+                    else { Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox' }
+$script:ToolsDir = if ($script:ScriptDir) { Join-Path $script:ScriptDir 'tools' } else { Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox\tools' }
 
 # ----------------------------------------------------------------
 # Raccourci global & options persistantes (v2.0)
@@ -2756,7 +2759,8 @@ namespace WindowsToolbox {
         Set-StartupWithWindows ((Get-ToolboxSetting 'StartWithWindows' 0) -eq 1)
     }
     Add-OptionCheck $tabQuick 'Vérifier les mises à jour chaque jour à 12h00 (tâche planifiée, installation silencieuse)' 'UpdateTask' -OnChange {
-        $up = Join-Path $PSScriptRoot 'Updater-Toolbox.ps1'
+        $up = Join-Path $script:ScriptDir 'Updater-Toolbox.ps1'
+        if (-not (Test-Path -LiteralPath $up)) { $up = Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox\Updater-Toolbox.ps1' }
         if (-not (Test-Path -LiteralPath $up)) { $up = Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox\Updater-Toolbox.ps1' }
         if ((Get-ToolboxSetting 'UpdateTask' 0) -eq 1) {
             if (Test-Path -LiteralPath $up) {
