@@ -287,9 +287,15 @@ function Set-Status {
 function Start-GuiTarget {
     param([string]$Target, [string]$TargetArgs = '', [switch]$Elevated)
     try {
-        if ($TargetArgs) { $null = Start-Process -FilePath $Target -ArgumentList $TargetArgs }
-        elseif ($Elevated) { $null = Start-Process -FilePath $Target -Verb RunAs }
-        else { $null = Start-Process -FilePath $Target }
+        if ($Elevated -and $TargetArgs) {
+            $null = Start-Process -FilePath $Target -ArgumentList $TargetArgs -Verb RunAs
+        } elseif ($Elevated) {
+            $null = Start-Process -FilePath $Target -Verb RunAs
+        } elseif ($TargetArgs) {
+            $null = Start-Process -FilePath $Target -ArgumentList $TargetArgs
+        } else {
+            $null = Start-Process -FilePath $Target
+        }
     } catch {
         Append-Console ("[ERREUR] Impossible d'ouvrir « {0} » : {1}" -f $Target, $_.Exception.Message)
     }
@@ -425,22 +431,27 @@ function Start-UpdateInstall {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 try {
   if ($isExe) {
-    # Auto-update EXE : telechargement memoire + verification SHA256 + bascule par renommage
     # Auto-update EXE : telechargement en OCTETS bruts (WebClient) + verification SHA256 + bascule par renommage
     $newExe = "$dest.update"
     $wcDL = New-Object System.Net.WebClient
     $bytes = $wcDL.DownloadData($dlUrl)
     $wcDL.Dispose()
-    if ($dlHash) {
-      $sha = [System.Security.Cryptography.SHA256]::Create()
-      $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
-      $sha.Dispose()
-      if ($got -ne $dlHash) {
-        $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — installation refusée (sécurité).')
-        return
-      }
-      $q.Enqueue('[MAJ] Empreinte SHA256 du nouvel EXE vérifiée OK')
+    if (-not $dlHash) {
+      $q.Enqueue('UPDFAIL|Manifeste sans SHA256 — mise à jour refusée par sécurité (fail-closed).')
+      return
     }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
+    $sha.Dispose()
+    if ($got -ne $dlHash) {
+      $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — installation refusée (sécurité).')
+      return
+    }
+    if (-not $dlUrl.StartsWith('https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/')) {
+      $q.Enqueue('UPDFAIL|URL hors source officielle — téléchargement refusé.')
+      return
+    }
+    $q.Enqueue('[MAJ] Empreinte SHA256 du nouvel EXE vérifiée OK')
     [IO.File]::WriteAllBytes($newExe, $bytes)
     $q.Enqueue("EXEREADY|$newExe|$newVer")
   } else {
@@ -450,16 +461,22 @@ try {
     $wcDL = New-Object System.Net.WebClient
     $bytes = $wcDL.DownloadData($dlUrl)
     $wcDL.Dispose()
-    if ($dlHash) {
-      $sha = [System.Security.Cryptography.SHA256]::Create()
-      $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
-      $sha.Dispose()
-      if ($got -ne $dlHash) {
-        $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — mise à jour refusée par sécurité (rien n''a été écrit sur le disque).')
-        return
-      }
-      $q.Enqueue('[MAJ] Empreinte SHA256 vérifiée EN MÉMOIRE avant écriture ✓')
+    if (-not $dlHash) {
+      $q.Enqueue('UPDFAIL|Manifeste sans SHA256 — mise à jour refusée par sécurité (fail-closed).')
+      return
     }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $got = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '')
+    $sha.Dispose()
+    if ($got -ne $dlHash) {
+      $q.Enqueue('UPDFAIL|Empreinte SHA256 différente du manifeste — mise à jour refusée par sécurité (rien n''a été écrit sur le disque).')
+      return
+    }
+    if (-not $dlUrl.StartsWith('https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/')) {
+      $q.Enqueue('UPDFAIL|URL hors source officielle — téléchargement refusé.')
+      return
+    }
+    $q.Enqueue('[MAJ] Empreinte SHA256 vérifiée EN MÉMOIRE avant écriture ✓')
     [IO.File]::WriteAllBytes($tmp, $bytes)
     $errs = $null
     $null = [System.Management.Automation.Language.Parser]::ParseFile($tmp, [ref]$null, [ref]$errs)
@@ -615,7 +632,7 @@ function New-FavoriButton {
 
 function Build-FavorisTab {
     if (-not $script:TabFav) { return }
-    $flow = $script:TabFav.Controls[0]
+    $flow = $script:TabFav
     if (-not $flow) { return }
     $flow.Controls.Clear()
     $favs = @(Get-Favoris)
@@ -1707,7 +1724,7 @@ try {
 
 $script:CmdMotherboard = @'
 $bb = Get-CimInstance Win32_BaseBoard | Select-Object -First 1
-$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1Product
+$cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
 $bio = Get-CimInstance Win32_BIOS | Select-Object -First 1
 'Fabricant carte mère : {0}' -f $bb.Manufacturer
 'Modèle               : {0} — version {1}' -f $bb.Product, $bb.Version
@@ -1841,6 +1858,7 @@ Get-ChildItem ([Environment]::GetFolderPath('Startup')) -ErrorAction SilentlyCon
 '@
 
 $script:CmdStartupDisable = @'
+Add-Type -AssemblyName Microsoft.VisualBasic
 $name = [Microsoft.VisualBasic.Interaction]::InputBox('Nom EXACT de l''entree a desactiver (voir la liste)', 'Desactiver au demarrage')
 if (-not $name) { 'Annule.'; return }
 $bk = Join-Path ([Environment]::GetFolderPath('Desktop')) ('sauvegarde-demarrage-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.reg')
@@ -2025,6 +2043,308 @@ if ($ev) {
   'Principales sources :'
   $ev | Group-Object ProviderName | Sort-Object Count -Descending | Select-Object -First 8 | ForEach-Object { '  {0,-32} {1}' -f $_.Name, $_.Count }
 } else { 'Aucune alerte sur 7 jours — excellent.' }
+'@
+
+# ---------------- Sauvegardes avant intervention (filet de sécurité) ----------------
+
+$script:CmdBackupFull = @'
+$stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+$dir   = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('WindowsToolbox\Sauvegardes\' + $stamp)
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+'=== SAUVEGARDE AVANT INTERVENTION — WINDOWS TOOLBOX ==='
+''
+'Dossier de sauvegarde : ' + $dir
+''
+'--- 1/4 Point de restauration système ---'
+try {
+  Checkpoint-Computer -Description 'Windows Toolbox — avant intervention' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
+  '  OK : point de restauration créé (type MODIFY_SETTINGS).'
+} catch {
+  '  Point de restauration non créé : ' + $_.Exception.Message
+  '  (Limite Windows : 1 point par 24 h. Si ça bloque, active la Protection système : Système → Protection système.)'
+}
+''
+'--- 2/4 Export du registre (3 fichiers .reg) ---'
+$exports = @(
+  @{ K = 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';       F = 'registre-HKCU-Run.reg' },
+  @{ K = 'HKLM\SOFTWARE\Policies';                                   F = 'registre-HKLM-Policies.reg' },
+  @{ K = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'; F = 'registre-HKLM-Uninstall.reg' }
+)
+foreach ($e in $exports) {
+  $f = Join-Path $dir $e.F
+  reg export $e.K $f /y | Out-Null
+  if (Test-Path -LiteralPath $f) { '  OK : {0} ({1:N0} Ko)' -f $e.F, ((Get-Item -LiteralPath $f).Length / 1KB) }
+  else { '  ÉCHEC : export impossible de ' + $e.K }
+}
+''
+'--- 3/4 Liste des programmes installés ---'
+$progs = Join-Path $dir 'programmes-installes.txt'
+Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+  Where-Object { $_.DisplayName } |
+  Sort-Object DisplayName |
+  ForEach-Object { '{0} | version {1} | {2}' -f $_.DisplayName, $_.DisplayVersion, $_.Publisher } |
+  Set-Content -LiteralPath $progs -Encoding UTF8
+'  OK : {0} programme(s) listé(s) → programmes-installes.txt' -f @(Get-Content -LiteralPath $progs -ErrorAction SilentlyContinue).Count
+''
+'--- 4/4 Liste des services démarrés ---'
+$svcs = Join-Path $dir 'services-demarres.txt'
+Get-Service | Where-Object { $_.Status -eq 'Running' } |
+  Sort-Object DisplayName |
+  ForEach-Object { '{0} | {1} | {2}' -f $_.Name, $_.DisplayName, $_.Status } |
+  Set-Content -LiteralPath $svcs -Encoding UTF8
+'  OK : {0} service(s) démarré(s) → services-demarres.txt' -f @(Get-Content -LiteralPath $svcs -ErrorAction SilentlyContinue).Count
+''
+'=== SAUVEGARDE TERMINÉE ==='
+'Conserve ce dossier précieusement : ' + $dir
+'Retour en arrière possible : rstrui (Restauration du système) ou import des .reg (bouton dédié).'
+'@
+
+$script:CmdBackupRestore = @'
+Add-Type -AssemblyName Microsoft.VisualBasic
+$base = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsToolbox\Sauvegardes'
+$files = @(Get-ChildItem -LiteralPath $base -Recurse -Filter '*.reg' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+if ($files.Count -eq 0) {
+  'Aucune sauvegarde .reg trouvée dans : ' + $base
+  '→ Lance d''abord le bouton « SAUVEGARDE AVANT INTERVENTION ».'
+  return
+}
+'=== RESTAURER UNE SAUVEGARDE .REG ==='
+'Sauvegardes disponibles (du plus récent au plus ancien) :'
+''
+$i = 0
+foreach ($f in $files) {
+  $i++
+  '  [{0}] {1:yyyy-MM-dd HH:mm}  {2}' -f $i, $f.LastWriteTime, $f.FullName
+}
+''
+$n = [Microsoft.VisualBasic.Interaction]::InputBox('Numéro de la sauvegarde à importer (voir la liste ci-dessus) :', 'Restaurer une sauvegarde .reg', '1')
+$num = 0
+if (-not [int]::TryParse($n, [ref]$num) -or $num -lt 1 -or $num -gt $files.Count) {
+  'Numéro invalide ou annulé — rien n''a été importé.'
+  return
+}
+$f = $files[$num - 1]
+''
+'ATTENTION : les valeurs du fichier .reg VONT ÉCRASER les valeurs actuelles du registre.'
+'Fichier choisi : ' + $f.FullName
+$ok = Read-Host 'Confirmer l''import ? (O/N)'
+if ($ok -notmatch '^[OoYy]') { 'Annulé — rien n''a été importé.'; return }
+''
+reg import $f.FullName
+if ($LASTEXITCODE -eq 0) { 'Import réussi — redémarre le PC (ou l''Explorateur) pour que tout s''applique.' }
+else { 'Échec de l''import (code de retour ' + $LASTEXITCODE + ').' }
+'@
+
+# ---------------- Windows Update avancé (COM Windows Update Agent) ----------------
+
+$script:CmdWuPending = @'
+'=== MISES À JOUR WINDOWS EN ATTENTE — recherche en cours (10 à 60 s)… ==='
+''
+$session  = New-Object -ComObject Microsoft.Update.Session
+$searcher = $session.CreateUpdateSearcher()
+$result   = $searcher.Search('IsInstalled=0 and IsHidden=0')
+if ($result.Updates.Count -eq 0) {
+  'Aucune mise à jour en attente — Windows est à jour.'
+  return
+}
+'{0} mise(s) à jour en attente :' -f $result.Updates.Count
+''
+$i = 0
+$total = 0
+foreach ($u in $result.Updates) {
+  $i++
+  $kbs = @()
+  for ($j = 0; $j -lt $u.KBArticleIDs.Count; $j++) { $kbs += ('KB' + $u.KBArticleIDs.Item($j)) }
+  $kb = '—'
+  if ($kbs.Count -gt 0) { $kb = $kbs -join ', ' }
+  $mo = [math]::Round($u.MaxDownloadSize / 1MB, 1)
+  $total = $total + $mo
+  $sev = 'non classée'
+  if ($u.MsrcSeverity) { $sev = $u.MsrcSeverity }
+  '[{0}] {1}' -f $i, $u.Title
+  '      KB : {0}  |  Taille : {1:N1} Mo  |  Sévérité : {2}' -f $kb, $mo, $sev
+}
+''
+'TOTAL À TÉLÉCHARGER : {0:N1} Mo ({1} mise(s))' -f $total, $result.Updates.Count
+'→ Pour installer : bouton « Installer les mises à jour en attente (admin) ».'
+'@
+
+$script:CmdWuInstall = @'
+'=== INSTALLER LES MISES À JOUR WINDOWS EN ATTENTE (admin) ==='
+''
+$rep = Read-Host 'AVERTISSEMENT : l''installation de TOUTES les mises à jour peut durer de 10 minutes à plus d''une heure (téléchargement + installation + redémarrage possible). Continuer ? (O/N)'
+if ($rep -notmatch '^[OoYy]') { 'Annulé — aucune mise à jour installée.'; return }
+''
+'Recherche des mises à jour en attente (10 à 60 s)…'
+$session  = New-Object -ComObject Microsoft.Update.Session
+$searcher = $session.CreateUpdateSearcher()
+$result   = $searcher.Search('IsInstalled=0 and IsHidden=0')
+if ($result.Updates.Count -eq 0) { 'Aucune mise à jour en attente — Windows est déjà à jour.'; return }
+$tailleMo = ($result.Updates | ForEach-Object { $_.MaxDownloadSize } | Measure-Object -Sum).Sum / 1MB
+''
+'{0} mise(s) à installer ({1:N1} Mo au total) — laisse cette fenêtre ouverte…' -f $result.Updates.Count, $tailleMo
+foreach ($u in $result.Updates) {
+  '  - ' + $u.Title
+  if (-not $u.EulaAccepted) { $u.AcceptEula() }
+}
+''
+$installer = New-Object -ComObject Microsoft.UpdateInstaller
+$installer.Updates = $result.Updates
+$res = $installer.Install()
+''
+'Résultat : code {0} (2 = réussi, 3 = réussi mais redémarrage requis, 4 = échec, 5 = annulé)' -f $res.ResultCode
+'Code détaillé : 0x{0:X8}' -f $res.HResult
+if ($res.RebootRequired) { 'ATTENTION : un REDÉMARRAGE est requis pour finaliser l''installation.' }
+'@
+
+$script:CmdWuHistory = @'
+'=== HISTORIQUE DES 20 DERNIÈRES MISES À JOUR WINDOWS ==='
+''
+$session  = New-Object -ComObject Microsoft.Update.Session
+$searcher = $session.CreateUpdateSearcher()
+$total = $searcher.GetTotalHistoryCount()
+if ($total -eq 0) { 'Historique vide — aucune mise à jour passée par Windows Update.'; return }
+$debut = [math]::Max(0, ($total - 20))
+$h = @($searcher.QueryHistory($debut, 20)) | Sort-Object Date -Descending
+'{0} entrée(s) affichée(s) sur {1} au total (du plus récent au plus ancien) :' -f @($h).Count, $total
+''
+foreach ($e in $h) {
+  $statut = switch ($e.ResultCode) {
+    2 { 'Réussie' }
+    3 { 'Réussie (redémarrage requis)' }
+    4 { 'ÉCHEC' }
+    5 { 'Annulée' }
+    default { ('Code ' + $e.ResultCode) }
+  }
+  $op = switch ($e.Operation) {
+    1 { 'Installation' }
+    2 { 'Désinstallation' }
+    default { 'Autre' }
+  }
+  '{0:yyyy-MM-dd HH:mm}  |  {1,-13}  |  {2,-28}  |  {3}' -f $e.Date, $op, $statut, $e.Title
+}
+'@
+
+# ---------------- Réparation réseau complète guidée (admin) ----------------
+
+$script:CmdNetRepair = @'
+'=== RÉPARATION RÉSEAU COMPLÈTE — 6 ÉTAPES GUIDÉES (admin) ==='
+''
+'ÉTAPE 1/6 — Vidage du cache DNS'
+'Cet appel vide le cache DNS local : les noms de sites seront redemandés au serveur DNS (répare les mauvaises adresses mises en cache).'
+ipconfig /flushdns
+''
+'ÉTAPE 2/6 — Réinitialisation de Winsock'
+'Ceci remet à zéro le catalogue Winsock (répare les connexions cassées par un logiciel réseau, un VPN ou un malware). Un redémarrage sera nécessaire.'
+netsh winsock reset
+''
+'ÉTAPE 3/6 — Réinitialisation de la pile TCP/IP'
+'Ceci réécrit les clés de registre de la pile TCP/IP (répare une configuration IP corrompue). Un redémarrage sera nécessaire.'
+netsh int ip reset
+''
+'ÉTAPE 4/6 — Renouvellement de l''adresse IP'
+'Ceci libère l''adresse IP actuelle puis en demande une nouvelle à la box / au routeur (quelques secondes de coupure réseau).'
+ipconfig /release
+ipconfig /renew
+''
+'ÉTAPE 5/6 — Ré-enregistrement DNS du PC'
+'Ceci rafraîchit le bail DHCP et réenregistre le nom de l''ordinateur dans le DNS.'
+ipconfig /registerdns
+''
+'ÉTAPE 6/6 — Test de connexion'
+'Un ping vers 8.8.8.8 pour vérifier que le réseau répond :'
+ping -n 3 8.8.8.8
+''
+'=== RÉPARATION RÉSEAU TERMINÉE ==='
+'Teste Internet maintenant. Si le problème persiste, REDÉMARRE le PC :'
+'les étapes 2 et 3 (Winsock + TCP/IP) ne prennent effet qu''après un redémarrage.'
+'@
+
+# ---------------- Détection bloatware (apps préinstallées) ----------------
+
+$script:CmdBloatDetect = @'
+'=== DÉTECTION DES APPS PRÉINSTALLÉES (BLOATWARE) — lecture seule, RIEN n''est supprimé ==='
+''
+$list = @(
+  @{ N = 'Microsoft.549981C3F5F10';                L = 'Cortana' },
+  @{ N = 'Microsoft.BingNews';                     L = 'Actualités Bing' },
+  @{ N = 'Microsoft.BingWeather';                  L = 'Météo Bing' },
+  @{ N = 'Microsoft.GetHelp';                      L = 'Obtenir de l''aide' },
+  @{ N = 'Microsoft.Getstarted';                   L = 'Conseils Windows (Get Started)' },
+  @{ N = 'Microsoft.MicrosoftSolitaireCollection'; L = 'Solitaire Collection' },
+  @{ N = 'Microsoft.MixedReality.Portal';          L = 'Portail Mixed Reality' },
+  @{ N = 'Microsoft.Office.OneNote';               L = 'OneNote (bureau gratuit)' },
+  @{ N = 'Microsoft.People';                       L = 'Contacts (People)' },
+  @{ N = 'Microsoft.SkypeApp';                     L = 'Skype' },
+  @{ N = 'Microsoft.Todos';                        L = 'Microsoft To Do' },
+  @{ N = 'Microsoft.WindowsFeedbackHub';           L = 'Hub de commentaires' },
+  @{ N = 'Microsoft.WindowsMaps';                  L = 'Cartes' },
+  @{ N = 'Microsoft.Xbox.TCUI';                    L = 'Superposition Xbox (TCUI)' },
+  @{ N = 'Microsoft.ZuneMusic';                    L = 'Groove / Musique' },
+  @{ N = 'Microsoft.ZuneVideo';                    L = 'Films et TV' },
+  @{ N = 'Microsoft.3DBuilder';                    L = '3D Builder' },
+  @{ N = 'Microsoft.Print3D';                      L = 'Print 3D' },
+  @{ N = 'Microsoft.Advertising.Xaml';             L = 'Annonces publicitaires (framework)' }
+)
+$nb = 0
+foreach ($a in $list) {
+  $p = Get-AppxPackage -Name $a.N -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($p) {
+    $nb++
+    '[INSTALLÉ] {0,-34} {1}' -f $a.N, $a.L
+  } else {
+    '[absent  ] {0,-34} {1}' -f $a.N, $a.L
+  }
+}
+''
+'RÉSULTAT : {0} app(s) préinstallée(s) sur les {1} de la liste.' -f $nb, $list.Count
+'Lecture seule : rien n''a été supprimé. Pour supprimer, utilise le bouton « Supprimer le bloatware sélectionné (admin) »'
+'en copiant les noms EXACTS des packages ci-dessus (colonne de gauche).'
+'@
+
+$script:CmdBloatRemove = @'
+Add-Type -AssemblyName Microsoft.VisualBasic
+'=== SUPPRIMER LE BLOATWARE SÉLECTIONNÉ (admin) ==='
+''
+'Liste des noms disponibles : bouton « Détecter les apps préinstallées courantes (bloatware) ».'
+$raw = [Microsoft.VisualBasic.Interaction]::InputBox('Noms EXACTS des packages AppX à supprimer, séparés par des virgules (exemple : Microsoft.BingWeather, Microsoft.SkypeApp) :', 'Supprimer le bloatware')
+if (-not $raw) { 'Annulé — rien n''a été supprimé.'; return }
+$names = @($raw -split '[,;\r\n]+') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+if ($names.Count -eq 0) { 'Aucun nom valide fourni — annulé.'; return }
+''
+'{0} package(s) à supprimer pour TOUS les utilisateurs de ce PC :' -f $names.Count
+foreach ($n in $names) { '  - ' + $n }
+''
+$rep = Read-Host 'ATTENTION : suppression définitive de ces applications (la plupart sont réinstallables via le Microsoft Store). Confirmer ? (O/N)'
+if ($rep -notmatch '^[OoYy]') { 'Annulé — rien n''a été supprimé.'; return }
+''
+foreach ($n in $names) {
+  'Suppression de {0} …' -f $n
+  $pkgs = @()
+  try { $pkgs = @(Get-AppxPackage -Name $n -AllUsers -ErrorAction Stop) } catch { '  ERREUR : ' + $_.Exception.Message }
+  if ($pkgs.Count -eq 0) {
+    '  → introuvable sur ce PC (déjà supprimé ou nom incorrect ?).'
+  } else {
+    foreach ($p in $pkgs) {
+      try {
+        Remove-AppxPackage -Package $p.PackageFullName -AllUsers -ErrorAction Stop
+        '  OK, supprimé : ' + $p.PackageFullName
+      } catch {
+        '  ÉCHEC sur {0} : {1}' -f $p.PackageFullName, $_.Exception.Message
+      }
+    }
+  }
+  ''
+}
+'=== VÉRIFICATION FINALE ==='
+foreach ($n in $names) {
+  $reste = Get-AppxPackage -Name $n -AllUsers -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($reste) { '  ENCORE PRÉSENT : ' + $n } else { '  OK, absent : ' + $n }
+}
+''
+'Si une app « provisionnée » revient pour les nouveaux comptes, redémarre le PC puis relance une suppression.'
 '@
 
 function Show-ScreenTest {
@@ -2263,12 +2583,13 @@ namespace WindowsToolbox {
     $console.ScrollBars = 'Vertical'
     $console.WordWrap = $false
     $console.Text = "Windows 11 Toolbox v$script:ToolboxVersion — console prête.`r`nAstuce : les boutons orange « (admin) » demandent la confirmation UAC et s'ouvrent dans une console séparée.`r`nCe logiciel est gratuit — si tu l'aimes, le bouton « Faire un don » (en haut ou dans À propos) soutient le développement.`r`n"
-    Test-ToolboxIntegrity
+
 
     $consolePanel.Controls.Add($console)
     $consolePanel.Controls.Add($consoleBar)
     $script:ConsoleBox = $console
 
+    Test-ToolboxIntegrity
     # ---------- Barre de statut ----------
     $statusStrip = New-Object Windows.Forms.StatusStrip
     $statusLabel = New-Object Windows.Forms.ToolStripStatusLabel
@@ -2469,6 +2790,9 @@ namespace WindowsToolbox {
     Add-CmdButton $tabNet 'Vider le cache DNS' -Kind 'Elevated' -Script 'ipconfig /flushdns; Clear-DnsClientCache; ''Cache DNS vidé.'''
     Add-CmdButton $tabNet 'Reset Winsock + pile TCP/IP (redémarrage conseillé)' -Kind 'Elevated' -Script 'netsh winsock reset; netsh int ip reset; ipconfig /flushdns; ''Reset terminé — redémarre le PC.'''
 
+    Add-Section $tabNet 'Réparation réseau guidée (admin)'
+    Add-CmdButton $tabNet 'RÉPARATION RÉSEAU COMPLÈTE (admin) — 6 étapes guidées' -Kind 'Elevated' -Script $script:CmdNetRepair -Desc 'Enchaîne en t''annonçant chaque étape : cache DNS, Winsock, pile TCP/IP, renouvellement IP, registerdns + test final — redémarre ensuite si le problème persiste'
+
     Add-Section $tabNet 'Accès rapide'
     Add-CmdButton $tabNet 'Connexions réseau (ncpa.cpl)' -Kind 'Gui' -Target 'ncpa.cpl'
     Add-CmdButton $tabNet 'Pare-feu Windows (wf.msc)' -Kind 'Gui' -Target 'wf.msc'
@@ -2512,6 +2836,11 @@ namespace WindowsToolbox {
     Add-CmdButton $tabWin 'Lister les mises à jour disponibles (winget upgrade)' -Script $script:CmdWinget
     Add-CmdButton $tabWin 'Mettre à jour TOUT — rapport en direct (~10-30 min)' -Stream -Script 'winget upgrade --all --accept-source-agreements --accept-package-agreements --disable-interactivity' -Desc 'Le rapport s''affiche ligne par ligne dans la console ; UAC possible pour certains logiciels'
     Add-CmdButton $tabWin 'Actualiser les sources winget' -Script 'winget source update --accept-source-agreements; winget source list'
+
+    Add-Section $tabWin 'Windows Update avancé'
+    Add-CmdButton $tabWin 'Lister les mises à jour en attente (KB, taille, sévérité)' -Script $script:CmdWuPending -Desc 'Interroge Windows Update directement (COM) — lecture seule, 10 à 60 s'
+    Add-CmdButton $tabWin 'Installer les mises à jour en attente (admin)' -Kind 'Elevated' -Script $script:CmdWuInstall -Desc 'Installe tout ce qui est en attente — de 10 min à plus d''une heure, redémarrage possible'
+    Add-CmdButton $tabWin 'Historique des 20 dernières mises à jour' -Script $script:CmdWuHistory -Desc 'Réussies ou échouées, avec date, type et statut'
 
     Add-Section $tabWin 'Terminaux'
     Add-CmdButton $tabWin 'Invite de commandes (cmd)' -Kind 'Gui' -Target 'cmd.exe'
@@ -2596,6 +2925,9 @@ namespace WindowsToolbox {
     Add-CmdButton $tabRare '⚠ Redémarrer dans WinRE (avancé) — redémarre MAINTENANT' -Kind 'GuiElevated' -Target 'shutdown.exe' -TargetArgs '/r /o /t 0' -Desc 'Sauvegarde tes documents avant de cliquer ! Menu de récupération au redémarrage'
 
     # ================= Onglet Nettoyage & rapidité =================
+    Add-Section $tabClean 'Sauvegardes — avant toute intervention'
+    Add-CmdButton $tabClean 'SAUVEGARDE AVANT INTERVENTION (recommandé)' -Kind 'Elevated' -Script $script:CmdBackupFull -Desc 'Point de restauration + export registre (.reg) + liste des programmes + services démarrés, dans Documents\WindowsToolbox\Sauvegardes\<horodatage>'
+    Add-CmdButton $tabClean 'Restaurer une sauvegarde .reg (admin)' -Kind 'Elevated' -Script $script:CmdBackupRestore -Desc 'Liste les .reg des sauvegardes puis importe celui que tu choisis (écrase les valeurs actuelles du registre)'
     Add-Section $tabClean 'Analyse — avant de nettoyer'
     Add-CmdButton $tabClean 'NETTOYAGE COMPLET EN 1 CLIC — rapport en direct' -Stream -Script $script:CmdCleanAll -Desc 'Chaîne tous les nettoyages sans risque (TEMP, vignettes, WER, corbeille) et affiche le total libéré'
     Add-CmdButton $tabClean 'AUDIT EXPRESS du PC (lecture seule, ~30 s)' -Script $script:CmdAudit -Desc 'Espace disque, santé SSD, RAM, erreurs, temps de démarrage — verdict en un coup d''œil'
@@ -2736,6 +3068,10 @@ namespace WindowsToolbox {
     Add-CmdButton $tabQuick 'Ouvrir : Options d''alimentation' -Kind 'Gui' -Target 'shell:::{025A5937-A6BE-4686-A844-36FE4BEC8B6D}'
     Add-CmdButton $tabQuick 'Ouvrir : Son' -Kind 'Gui' -Target 'shell:::{F2DDFC82-8F12-4CDD-B7DC-D4FE1425AA4D}'
     Add-CmdButton $tabQuick 'Ouvrir : Centre Réseau et partage' -Kind 'Gui' -Target 'shell:::{8E908FC9-BECC-40f6-915B-F4CA0E70D03D}'
+
+    Add-Section $tabQuick 'Détection bloatware'
+    Add-CmdButton $tabQuick 'Détecter les apps préinstallées courantes (bloatware)' -Script $script:CmdBloatDetect -Desc 'Cortana, Skype, Solitaire, Cartes… installé ou absent — lecture seule, RIEN n''est supprimé'
+    Add-CmdButton $tabQuick 'Supprimer le bloatware sélectionné (admin)' -Kind 'Elevated' -Script $script:CmdBloatRemove -Desc 'Tape les noms EXACTS des packages à supprimer (séparés par des virgules) — avertissement et confirmation avant exécution'
 
     Add-Section $tabQuick 'Options de l''application'
     function Add-OptionCheck {
