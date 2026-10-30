@@ -1,7 +1,7 @@
 {
     "version":  "3.2.2",
     "url":  "https://raw.githubusercontent.com/derouicheoussama/windows-toolbox/main/Windows-Toolbox.ps1",
-    "sha256":  "FB24D3AA85185CF11A7055C616D85E653343B054F47F87CD02C8627524ED1CC4",
+    "sha256":  "EE9518EFAF2AC2C55130BA4A3C4D0E2B56EE54F4528608E3C02C5419E3D13BC2",
     "notes":  "v3.2.2 : correctif du telechargeur de mise a jour (octets bruts WebClient, plus d erreur de conversion buffer).",
     "license":  "GPL-3.0 (C) 2026 Derouiche Oussama",
     "date":  "2026-10-28",
