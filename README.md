@@ -181,6 +181,8 @@ Ce projet est **signé avec un certificat Certum Open Source Code Signing** — 
 
 Le bouton **« Faire un don »** (barre du haut + À propos) ouvre ta page PayPal — personnalise-la en tête de `Windows-Toolbox.ps1` (`$script:DonationUrl`). Les liens site/réseaux sociaux sont juste en dessous.
 
+[![Ko-fi](https://img.shields.io/badge/%E2%98%95%20Soutenir-Ko--fi-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/derouicheoussama) **[Soutenir via Ko-fi](https://ko-fi.com/derouicheoussama)** — pour celles et ceux qui sont hors PayPal : chaque café finance les prochaines mises à jour gratuites.
+
 ---
 
 *∞ Infinity Coder — Derouiche Oussama · [derouicheoussama.com](https://www.derouicheoussama.com) · [github.com/derouicheoussama](https://github.com/derouicheoussama)*
