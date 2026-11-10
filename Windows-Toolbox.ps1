@@ -28,7 +28,7 @@ param(
     [switch]$List
 )
 
-$script:ToolboxVersion = '3.2.2'
+$script:ToolboxVersion = '3.3.0'
 # ----------------------------------------------------------------
 # Liens de l'auteur — personnalise ton lien de don ci-dessous
 # ----------------------------------------------------------------
@@ -49,9 +49,18 @@ $script:ScriptDir = if ($PSScriptRoot) { $PSScriptRoot }
                     else { Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox' }
 $script:ToolsDir = if ($script:ScriptDir) { Join-Path $script:ScriptDir 'tools' } else { Join-Path $env:LOCALAPPDATA 'Programs\WindowsToolbox\tools' }
 
+function Write-BootLog {
+    param([string]$Msg)
+    try {
+        $f = Join-Path $env:TEMP 'Windows-Toolbox-boot.log'
+        ((Get-Date -Format 'HH:mm:ss.fff') + ' | ' + $Msg) | Add-Content -LiteralPath $f -Encoding UTF8
+    } catch { }
+}Write-BootLog 'boot: constantes init OK'
+
 # ----------------------------------------------------------------
 # Raccourci global & options persistantes (v2.0)
 # ----------------------------------------------------------------
+Write-BootLog 'boot: avant Add-Type HotkeyForm'
 if (-not ('WindowsToolbox.HotkeyForm' -as [type])) {
     Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition @'
 using System;
@@ -637,11 +646,31 @@ function Build-FavorisTab {
     $flow.Controls.Clear()
     $favs = @(Get-Favoris)
     if ($favs.Count -eq 0) {
-        $none = New-Object Windows.Forms.Label
-        $none.Text = '  (aucun favori) — clic droit sur n''importe quel bouton → « Ajouter aux favoris ».'
-        $none.AutoSize = $true
-        $none.ForeColor = [Drawing.Color]::Gray
-        $flow.Controls.Add($none)
+        $empty = New-Object Windows.Forms.Panel
+        $empty.Size = New-Object Drawing.Size(940, 150)
+        $empty.BackColor = [Drawing.Color]::White
+        $empty.Margin = New-Object Windows.Forms.Padding(4, 14, 4, 8)
+        $star = New-Object Windows.Forms.Label
+        $star.Text = '★'
+        $star.Font = New-Object Drawing.Font('Segoe UI', 24)
+        $star.ForeColor = [Drawing.Color]::FromArgb(245, 158, 11)
+        $star.AutoSize = $true
+        $star.Location = New-Object Drawing.Point(72, 28)
+        $empty.Controls.Add($star)
+        $t1 = New-Object Windows.Forms.Label
+        $t1.Text = 'Aucun favori pour l''instant'
+        $t1.Font = New-Object Drawing.Font('Segoe UI', 11, [Drawing.FontStyle]::Bold)
+        $t1.ForeColor = [Drawing.Color]::FromArgb(30, 41, 59)
+        $t1.AutoSize = $true
+        $t1.Location = New-Object Drawing.Point(152, 36)
+        $empty.Controls.Add($t1)
+        $t2 = New-Object Windows.Forms.Label
+        $t2.Text = 'Clic droit sur n''importe quelle commande → « Ajouter aux favoris » pour l''épingler ici et la retrouver en un clic.'
+        $t2.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
+        $t2.AutoSize = $true
+        $t2.Location = New-Object Drawing.Point(154, 68)
+        $empty.Controls.Add($t2)
+        $flow.Controls.Add($empty)
         return
     }
     foreach ($t in $favs) {
@@ -651,7 +680,7 @@ function Build-FavorisTab {
     $count = New-Object Windows.Forms.Label
     $count.Text = ('  {0} favori(s) — clic droit pour retirer' -f $favs.Count)
     $count.AutoSize = $true
-    $count.ForeColor = [Drawing.Color]::Gray
+    $count.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
     $count.Margin = New-Object Windows.Forms.Padding(6, 14, 6, 6)
     $flow.Controls.Add($count)
 }
@@ -2347,6 +2376,186 @@ foreach ($n in $names) {
 'Si une app « provisionnée » revient pour les nouveaux comptes, redémarre le PC puis relance une suppression.'
 '@
 
+# ---------------- Store : catalogue d'apps installables via winget (v3.3) ----------------
+
+$script:StoreCatalog = @(
+    @{ Name = 'CrystalDiskInfo';        Id = 'CrystalMark.CrystalDiskInfo';        Publisher = 'Crystal Dew World';   Cat = 'Diagnostic';  Desc = 'Santé SMART et température des SSD/HDD' }
+    @{ Name = 'CrystalDiskMark';        Id = 'CrystalDewWorld.CrystalDiskMark';    Publisher = 'Crystal Dew World';   Cat = 'Diagnostic';  Desc = 'Benchmark vitesse lecture/écriture' }
+    @{ Name = 'HWiNFO';                 Id = 'CPUID.HWiNFO';                       Publisher = 'HWiNFO';              Cat = 'Diagnostic';  Desc = 'Capteurs matériels les plus complets' }
+    @{ Name = 'CPU-Z';                  Id = 'CPUID.CPU-Z';                        Publisher = 'CPUID';               Cat = 'Diagnostic';  Desc = 'Identité CPU / RAM / carte mère' }
+    @{ Name = 'GPU-Z';                  Id = 'TechPowerUp.GPU-Z';                  Publisher = 'TechPowerUp';         Cat = 'Diagnostic';  Desc = 'Identité et capteurs carte graphique' }
+    @{ Name = 'HWMonitor';              Id = 'CPUID.HWMonitor';                    Publisher = 'CPUID';               Cat = 'Diagnostic';  Desc = 'Températures, tensions, ventilateurs' }
+    @{ Name = 'Libre Hardware Monitor'; Id = 'LibreHardwareMonitor.LibreHardwareMonitor'; Publisher = 'Libre HW';     Cat = 'Diagnostic';  Desc = 'Capteurs matériels open source' }
+    @{ Name = 'Core Temp';              Id = 'ALCPU.CoreTemp';                     Publisher = 'ALCPU';               Cat = 'Diagnostic';  Desc = 'Température CPU par cœur' }
+    @{ Name = 'Speccy';                 Id = 'Piriform.Speccy';                    Publisher = 'CCleaner';            Cat = 'Diagnostic';  Desc = 'Résumé matériel complet' }
+    @{ Name = 'Process Explorer';       Id = 'Microsoft.Sysinternals.ProcessExplorer'; Publisher = 'Microsoft';       Cat = 'Diagnostic';  Desc = 'Gestionnaire de processus avancé (Sysinternals)' }
+    @{ Name = 'Process Monitor';        Id = 'Microsoft.Sysinternals.ProcessMonitor'; Publisher = 'Microsoft';      Cat = 'Diagnostic';  Desc = 'Activité système temps réel (fichiers/registre)' }
+    @{ Name = 'Everything';             Id = 'voidtools.Everything';               Publisher = 'voidtools';           Cat = 'Utilitaires'; Desc = 'Recherche de fichiers instantanée' }
+    @{ Name = 'Notepad++';              Id = 'Notepad++.Notepad++';                Publisher = 'Notepad++';           Cat = 'Utilitaires'; Desc = 'Éditeur de texte avancé' }
+    @{ Name = '7-Zip';                  Id = '7zip.7zip';                          Publisher = '7-Zip';               Cat = 'Utilitaires'; Desc = 'Compression / décompression d''archives' }
+    @{ Name = 'ShareX';                 Id = 'ShareX.ShareX';                      Publisher = 'ShareX';              Cat = 'Utilitaires'; Desc = 'Captures d''écran et partage' }
+    @{ Name = 'PowerToys';              Id = 'Microsoft.PowerToys';                Publisher = 'Microsoft';           Cat = 'Utilitaires'; Desc = 'Suite d''utilitaires Microsoft pour experts' }
+    @{ Name = 'TreeSize Free';          Id = 'JAMSoftware.TreeSize.Free';          Publisher = 'JAM Software';        Cat = 'Utilitaires'; Desc = 'Analyse de l''espace disque' }
+    @{ Name = 'WinDirStat';             Id = 'WinDirStat.WinDirStat';              Publisher = 'WinDirStat';          Cat = 'Utilitaires'; Desc = 'Visualisation de l''espace disque' }
+    @{ Name = 'Sumatra PDF';            Id = 'SumatraPDF.SumatraPDF';              Publisher = 'Sumatra';             Cat = 'Utilitaires'; Desc = 'Lecteur PDF léger et rapide' }
+    @{ Name = 'PeaZip';                 Id = 'PeaZip.PeaZip';                      Publisher = 'PeaZip';              Cat = 'Utilitaires'; Desc = 'Gestionnaire d''archives' }
+    @{ Name = 'Rufus';                  Id = 'Rufus.Rufus';                        Publisher = 'Pete Batard';         Cat = 'Utilitaires'; Desc = 'Création de clés USB bootables' }
+    @{ Name = 'Malwarebytes';           Id = 'Malwarebytes.Malwarebytes';          Publisher = 'Malwarebytes';        Cat = 'Sécurité';    Desc = 'Antimalware complémentaire' }
+    @{ Name = 'VLC media player';       Id = 'VideoLAN.VLC';                       Publisher = 'VideoLAN';            Cat = 'Multimédia';  Desc = 'Lecteur multimédia universel' }
+    @{ Name = 'OBS Studio';             Id = 'OBSProject.OBSStudio';               Publisher = 'OBS Project';         Cat = 'Multimédia';  Desc = 'Enregistrement et streaming d''écran' }
+    @{ Name = 'Paint.NET';              Id = 'dotPDN.PaintDotNet';                 Publisher = 'Rick Brewster';       Cat = 'Multimédia';  Desc = 'Édition d''images simple et puissante' }
+    @{ Name = 'Google Chrome';          Id = 'Google.Chrome';                      Publisher = 'Google';              Cat = 'Navigateur';  Desc = 'Navigateur web Google' }
+    @{ Name = 'Mozilla Firefox';        Id = 'Mozilla.Firefox';                    Publisher = 'Mozilla';             Cat = 'Navigateur';  Desc = 'Navigateur web Mozilla' }
+    @{ Name = 'LibreOffice';            Id = 'TheDocumentFoundation.LibreOffice';  Publisher = 'The Document Foundation'; Cat = 'Bureautique'; Desc = 'Suite bureautique libre complète' }
+    @{ Name = 'K-Lite Codec Pack';      Id = 'CodecGuide.K-LiteCodecPack.Standard'; Publisher = 'Codec Guide';         Cat = 'Multimédia';  Desc = 'Codecs audio/vidéo complets' }
+    @{ Name = 'Autoruns';               Id = 'Microsoft.Sysinternals.Autoruns';    Publisher = 'Microsoft';           Cat = 'Diagnostic';  Desc = 'Tout ce qui se lance au démarrage (Sysinternals)' }
+)
+
+function Invoke-StoreInstall {
+    param([string]$Id, [string]$Name)
+    if ($script:Busy) { Set-Status '⏳ Une commande est déjà en cours…'; return }
+    $script:Busy = $true
+    Write-Historique ("Store install : " + $Name + " (" + $Id + ")")
+    Set-Status ("⏳ Installation : " + $Name + "…")
+    if ($script:StoreCardBtns.ContainsKey($Id)) {
+        $script:StoreCardBtns[$Id].Text = '…'
+        $script:StoreCardBtns[$Id].Enabled = $false
+    }
+    $ps = [powershell]::Create()
+    $ps.Runspace.SessionStateProxy.SetVariable('q', $sync.Queue)
+    $ps.Runspace.SessionStateProxy.SetVariable('wgId', $Id)
+    $null = $ps.AddScript(@'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$q.Enqueue('LOG|Téléchargement et installation de ' + $wgId + '…')
+$r = winget install --id $wgId --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1
+$code = $LASTEXITCODE
+$r | ForEach-Object { $q.Enqueue('OUT|' + $_) }
+if ($code -eq 0) { $q.Enqueue('OKSTORE|' + $wgId) } else { $q.Enqueue('FAILSTORE|' + $wgId + '|' + $code) }
+'@)
+    $script:PS     = $ps
+    $script:Handle = $ps.BeginInvoke()
+}
+
+function Append-StoreLog {
+    param([string]$Text)
+    Append-Console ('[Store] ' + $Text)
+}
+
+function Invoke-StoreScan {
+    if ($script:Busy) { Set-Status '⏳ Une commande est déjà en cours…'; return }
+    $script:Busy = $true
+    Append-StoreLog '↻ Détection des applications déjà installées (winget list)...'
+    Set-Status '⏳ Store : analyse des apps installées...'
+    $ps = [powershell]::Create()
+    $ps.Runspace.SessionStateProxy.SetVariable('q', $sync.Queue)
+    $ps.Runspace.SessionStateProxy.SetVariable('catIds', [string[]]@($script:StoreCatalog | ForEach-Object { $_.Id }))
+    $null = $ps.AddScript(@'
+$ids = New-Object System.Collections.Generic.List[string]
+try {
+  $out = winget list --disable-interactivity --accept-source-agreements 2>&1 | Out-String -Width 300
+  foreach ($l in ($out -split "`r?`n")) {
+    if ($l -notmatch '\S' -or $l -match '^-{5,}') { continue }
+    $parts = $l -split '\s{2,}'
+    if ($parts.Count -ge 2) {
+      $idCol = $parts[1].Trim()
+      foreach ($want in $catIds) { if ($idCol -ieq $want -and -not $ids.Contains($want)) { [void]$ids.Add($want) } }
+    }
+  }
+} catch { }
+foreach ($i in $ids) { $q.Enqueue('STOREINST|' + $i) }
+$q.Enqueue('STORESCANDONE|' + $ids.Count)
+'@)
+    $script:PS     = $ps
+    $script:Handle = $ps.BeginInvoke()
+}
+
+function Set-StoreCardInstalled {
+    param([string]$Id)
+    if ($script:StoreCardBtns.ContainsKey($Id)) {
+        $b = $script:StoreCardBtns[$Id]
+        $b.Text = 'INSTALLÉ ✓'
+        $b.BackColor = [Drawing.Color]::FromArgb(21, 128, 61)
+        $b.Enabled = $false
+    }
+}
+
+$script:StoreCardBtns = @{}
+$script:StoreCardCats = @{}
+$script:StoreInstalledIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$script:StoreFilter = 'Tous'
+$script:StoreCardsBuilt = $false
+
+function Build-StoreCards {
+    if (-not $script:StoreCardsBuilt) { return }
+    $flow = $script:StoreCardFlow
+    if (-not $flow) { return }
+    $flow.Controls.Clear()
+    $n = 0
+    foreach ($app in $script:StoreCatalog) {
+        $match = ($script:StoreFilter -eq 'Tous') -or ($app.Cat -eq $script:StoreFilter)
+        if (-not $match) { continue }
+        $flow.Controls.Add((New-StoreCard -App $app))
+        $n++
+    }
+    if ($n -eq 0) {
+        $none = New-Object Windows.Forms.Label
+        $none.Text = '  Aucune application dans ce filtre.'
+        $none.AutoSize = $true
+        $none.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
+        $flow.Controls.Add($none)
+    }
+}
+
+function New-StoreCard {
+    param([hashtable]$App)
+    $card = New-Object Windows.Forms.Panel
+    $card.Size = New-Object Drawing.Size(920, 84)
+    $card.BackColor = [Drawing.Color]::White
+    $card.Margin = New-Object Windows.Forms.Padding(4, 4, 4, 8)
+    $ic = New-Object Windows.Forms.Label
+    $ic.Size = New-Object Drawing.Size(48, 48)
+    $ic.Location = New-Object Drawing.Point(12, 18)
+    $ic.TextAlign = 'MiddleCenter'
+    $ic.Font = New-Object Drawing.Font('Segoe UI', 15, [Drawing.FontStyle]::Bold)
+    $ic.ForeColor = [Drawing.Color]::White
+    $ic.BackColor = [Drawing.Color]::FromArgb($App.Color.R, $App.Color.G, $App.Color.B)
+    $ic.Text = $App.Name.Substring(0,1).ToUpper()
+    $card.Controls.Add($ic)
+    $nm = New-Object Windows.Forms.Label
+    $nm.Text = $App.Name
+    $nm.Font = New-Object Drawing.Font('Segoe UI', 10, [Drawing.FontStyle]::Bold)
+    $nm.Location = New-Object Drawing.Point(72, 12)
+    $nm.AutoSize = $true
+    $card.Controls.Add($nm)
+    $pb = New-Object Windows.Forms.Label
+    $pb.Text = $App.Publisher
+    $pb.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
+    $pb.AutoSize = $true
+    $pb.Location = New-Object Drawing.Point(72, 36)
+    $card.Controls.Add($pb)
+    $de = New-Object Windows.Forms.Label
+    $de.Text = $App.Desc
+    $de.ForeColor = [Drawing.Color]::FromArgb(90, 98, 110)
+    $de.AutoSize = $false
+    $de.Size = New-Object Drawing.Size(560, 20)
+    $de.Location = New-Object Drawing.Point(72, 56)
+    $card.Controls.Add($de)
+    $bi = New-Object Windows.Forms.Button
+    $bi.Text = 'INSTALLER'
+    $bi.Tag = $App.Id
+    $bi.Size = New-Object Drawing.Size(104, 30)
+    $bi.Location = New-Object Drawing.Point(804, 27)
+    $bi.FlatStyle = 'Flat'
+    $bi.FlatAppearance.BorderSize = 0
+    $bi.BackColor = [Drawing.Color]::FromArgb(37, 99, 235)
+    $bi.ForeColor = [Drawing.Color]::White
+    $bi.Font = New-Object Drawing.Font('Segoe UI', 9, [Drawing.FontStyle]::Bold)
+    $bi.Add_Click({ Invoke-StoreInstall -Id $App.Id -Name $App.Name }.GetNewClosure())
+    $card.Controls.Add($bi)
+    $script:StoreCardBtns[$App.Id] = $bi
+    return $card
+}
+
 function Show-ScreenTest {
     $script:PixelColors = @('White', 'Black', 'Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Gray')
     $script:PixelIndex = 0
@@ -2407,7 +2616,9 @@ function Show-KeyboardTest {
 }
 
 function Show-Toolbox {
+    Write-BootLog 'boot: Show-Toolbox entre'
     $form = New-Object WindowsToolbox.HotkeyForm
+    Write-BootLog 'step : form-cree'
     $form.Text          = "Windows 11 Toolbox v$script:ToolboxVersion — Commandes · SSD · Diagnostics"
     $form.Size          = New-Object Drawing.Size(1080, 820)
     $form.FormBorderStyle = 'FixedDialog'
@@ -2415,13 +2626,17 @@ function Show-Toolbox {
     $form.StartPosition = 'CenterScreen'
     $form.Font          = New-Object Drawing.Font('Segoe UI', 9.75)
     $form.Icon          = [System.Drawing.SystemIcons]::Shield
+    Write-BootLog 'step : icon-ok'
     $form.BackColor     = [Drawing.Color]::FromArgb(243, 244, 246)
     $script:Form = $form
+    Write-BootLog 'step : form-stockee'
     $script:AllButtons = New-Object System.Collections.ArrayList
 
     $script:Tooltip = New-Object Windows.Forms.ToolTip
+    Write-BootLog 'step : tooltip-cree'
     $script:Tooltip.AutoPopDelay = 8000
 
+    Write-BootLog 'section : zone haute'
     # ---------- Zone haute : titre + badge admin ----------
     $top = New-Object Windows.Forms.Panel
     $top.Dock = 'Top'; $top.Height = 64; $top.BackColor = [Drawing.Color]::White
@@ -2436,7 +2651,7 @@ function Show-Toolbox {
     $subtitle = New-Object Windows.Forms.Label
     $subtitle.Text     = 'Diagnostics · SSD · Réparations'
     $subtitle.AutoSize = $true
-    $subtitle.ForeColor = [Drawing.Color]::Gray
+    $subtitle.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
     $subtitle.Location = New-Object Drawing.Point(19, 38)
     $top.Controls.Add($subtitle)
 
@@ -2496,7 +2711,7 @@ namespace WindowsToolbox {
     $btnDon.Anchor = 'Top,Right'
     $btnDon.FlatStyle = 'Flat'
     $btnDon.FlatAppearance.BorderSize = 0
-    $btnDon.BackColor = [Drawing.Color]::FromArgb(124, 58, 237)
+    $btnDon.BackColor = [Drawing.Color]::FromArgb(37, 99, 235)
     $btnDon.ForeColor = [Drawing.Color]::White
     $btnDon.Font = New-Object Drawing.Font('Segoe UI', 9.5, [Drawing.FontStyle]::Bold)
     $btnDon.Add_Click({ try { Start-Process $script:DonationUrl } catch { } })
@@ -2529,6 +2744,7 @@ namespace WindowsToolbox {
         $top.Controls.Add($btnAdmin)
     }
 
+    Write-BootLog 'section : console'
     # ---------- Console / rapport (bas) ----------
     $consolePanel = New-Object Windows.Forms.Panel
     $consolePanel.Dock = 'Bottom'; $consolePanel.Height = 260; $consolePanel.BackColor = [Drawing.Color]::White
@@ -2590,6 +2806,10 @@ namespace WindowsToolbox {
     $script:ConsoleBox = $console
 
     Test-ToolboxIntegrity
+
+    
+    Test-ToolboxIntegrity
+    Write-BootLog 'section : barre statut'
     # ---------- Barre de statut ----------
     $statusStrip = New-Object Windows.Forms.StatusStrip
     $statusLabel = New-Object Windows.Forms.ToolStripStatusLabel
@@ -2597,10 +2817,11 @@ namespace WindowsToolbox {
     [void]$statusStrip.Items.Add($statusLabel)
     $script:StatusLabel = $statusLabel
 
+    Write-BootLog 'section : onglets'
     # ---------- Onglets ----------
     $tabs = New-Object Windows.Forms.TabControl
     $tabs.Dock = 'Fill'
-    foreach ($spec in @(@('Système', '🖥'), @('Disques', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Favoris', '⭐'), @('Monitoring', '📊'), @('À propos', 'ℹ'))) {
+    foreach ($spec in @(@('Système', '🖥'), @('Disques', '💾'), @('Réseau', '🌐'), @('Windows', '🛠'), @('Rares', '⚡'), @('Nettoyage', '🧹'), @('Achat PC', '🛒'), @('Raccourcis', '🚀'), @('Tiers', '🧰'), @('Store', '🛍'), @('Favoris', '⭐'), @('Monitoring', '📊'), @('À propos', 'ℹ'))) {
         $page = New-Object Windows.Forms.TabPage
         $page.Text = ("{0} {1}" -f $spec[1], $spec[0])
         $page.UseVisualStyleBackColor = $true
@@ -2620,11 +2841,88 @@ namespace WindowsToolbox {
     $tabBuy    = $tabs.TabPages[6].Controls[0]
     $tabQuick  = $tabs.TabPages[7].Controls[0]
     $tabTools  = $tabs.TabPages[8].Controls[0]
-    $tabFav    = $tabs.TabPages[9].Controls[0]
-    $tabMon    = $tabs.TabPages[10].Controls[0]
-    $tabAbout  = $tabs.TabPages[11]
+    $tabStore  = $tabs.TabPages[9].Controls[0]
+    $tabFav    = $tabs.TabPages[10].Controls[0]
+    $tabMon    = $tabs.TabPages[11].Controls[0]
+    $tabAbout  = $tabs.TabPages[12]
     $script:TabFav = $tabFav
+    Write-BootLog 'section : store'
+    # ---------- Onglet Store (catalogue d'applications, v3.3) ----------
+    $storeHead = New-Object Windows.Forms.Panel
+    $storeHead.Size = New-Object Drawing.Size(940, 88)
+    $storeHead.BackColor = [Drawing.Color]::White
+    $storeHead.Margin = New-Object Windows.Forms.Padding(0, 0, 0, 10)
+    $storeTitle = New-Object Windows.Forms.Label
+    $storeTitle.Text = 'Catalogue d''applications'
+    $storeTitle.Font = New-Object Drawing.Font('Segoe UI', 14, [Drawing.FontStyle]::Bold)
+    $storeTitle.ForeColor = [Drawing.Color]::FromArgb(31, 42, 68)
+    $storeTitle.AutoSize = $true
+    $storeTitle.Location = New-Object Drawing.Point(16, 10)
+    $storeHead.Controls.Add($storeTitle)
+    $storeSub = New-Object Windows.Forms.Label
+    $storeSub.Text = 'Installation réelle via winget — chaque bouton installe vraiment l''application, sans publicité ni installation cachée'
+    $storeSub.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
+    $storeSub.AutoSize = $true
+    $storeSub.Location = New-Object Drawing.Point(18, 46)
+    $storeHead.Controls.Add($storeSub)
+    $btnStoreScan = New-Object Windows.Forms.Button
+    $btnStoreScan.Text = '↻ Analyser les apps installées'
+    $btnStoreScan.Size = New-Object Drawing.Size(240, 32)
+    $btnStoreScan.Location = New-Object Drawing.Point(692, 38)
+    $btnStoreScan.FlatStyle = 'Flat'
+    $btnStoreScan.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(209, 213, 219)
+    $btnStoreScan.BackColor = [Drawing.Color]::White
+    $btnStoreScan.Cursor = [Windows.Forms.Cursors]::Hand
+    $btnStoreScan.Add_Click({ Invoke-StoreScan })
+    $storeHead.Controls.Add($btnStoreScan)
+    $tabStore.Controls.Add($storeHead)
 
+    $storeChips = New-Object Windows.Forms.FlowLayoutPanel
+    $storeChips.Size = New-Object Drawing.Size(940, 44)
+    $storeChips.BackColor = [Drawing.Color]::White
+    $storeChips.Padding = New-Object Windows.Forms.Padding(8, 6, 8, 6)
+    $storeChips.Margin = New-Object Windows.Forms.Padding(0, 0, 0, 10)
+    $tabStore.Controls.Add($storeChips)
+    $script:StoreChips = $storeChips
+    foreach ($cat in @('Tous', 'Diagnostic', 'Utilitaires', 'Sécurité', 'Multimédia', 'Navigateur', 'Bureautique')) {
+        $chip = New-Object Windows.Forms.Button
+        $chip.Text = $cat
+        $chip.Tag = $cat
+        $chip.AutoSize = $true
+        $chip.Padding = New-Object Windows.Forms.Padding(10, 4, 10, 4)
+        $chip.Margin = New-Object Windows.Forms.Padding(2, 2, 8, 2)
+        $chip.FlatStyle = 'Flat'
+        $chip.FlatAppearance.BorderSize = 1
+        $chip.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(209, 213, 219)
+        $chip.BackColor = [Drawing.Color]::White
+        $chip.ForeColor = [Drawing.Color]::FromArgb(55, 65, 81)
+        $chip.Cursor = [Windows.Forms.Cursors]::Hand
+        $chip.Add_Click({
+            foreach ($c in $script:StoreChips.Controls) {
+                $c.BackColor = [Drawing.Color]::White
+                $c.ForeColor = [Drawing.Color]::FromArgb(55, 65, 81)
+            }
+            $this.BackColor = [Drawing.Color]::FromArgb(37, 99, 235)
+            $this.ForeColor = [Drawing.Color]::White
+            $script:StoreFilter = $this.Tag
+            if ($script:StoreCardsBuilt) { Build-StoreCards }
+        })
+        $storeChips.Controls.Add($chip)
+    }
+
+    $storeCardsFlow = New-Object Windows.Forms.FlowLayoutPanel
+    $storeCardsFlow.Size = New-Object Drawing.Size(940, 232)
+    $storeCardsFlow.AutoScroll = $true
+    $storeCardsFlow.Padding = New-Object Windows.Forms.Padding(4, 0, 4, 0)
+    $storeCardsFlow.Margin = New-Object Windows.Forms.Padding(0, 0, 0, 0)
+    $storeCardsFlow.BackColor = [Drawing.Color]::FromArgb(249, 250, 251)
+    $tabStore.Controls.Add($storeCardsFlow)
+    $script:StoreCardFlow = $storeCardsFlow
+
+    $script:StoreCardsBuilt = $true
+    Build-StoreCards
+
+    Write-BootLog 'section : bandeau'
     # ---------- Bandeau santé (tableau de bord d'accueil, v2.9) ----------
     $strip = New-Object Windows.Forms.TableLayoutPanel
     $strip.Dock = 'Top'
@@ -3171,7 +3469,7 @@ namespace WindowsToolbox {
         $none = New-Object Windows.Forms.Label
         $none.Text = '  (aucun) — installe-en depuis les liens ci-dessous, ou place tes .exe portables dans le dossier tools\.'
         $none.AutoSize = $true
-        $none.ForeColor = [Drawing.Color]::Gray
+        $none.ForeColor = [Drawing.Color]::FromArgb(85, 95, 110)
         $tabTools.Controls.Add($none)
     }
 
@@ -3232,7 +3530,7 @@ namespace WindowsToolbox {
     $donBig.FlatStyle = 'Flat'
     $donBig.FlatAppearance.BorderSize = 0
     $donBig.BackColor = [Drawing.Color]::White
-    $donBig.ForeColor = [Drawing.Color]::FromArgb(124, 58, 237)
+    $donBig.ForeColor = [Drawing.Color]::FromArgb(37, 99, 235)
     $donBig.Font = New-Object Drawing.Font('Segoe UI', 10.5, [Drawing.FontStyle]::Bold)
     $donBig.Add_Click({ try { Start-Process $script:DonationUrl } catch { } })
     $head.Controls.Add($donBig)
@@ -3283,8 +3581,8 @@ namespace WindowsToolbox {
         return $card
     }
 
-    $aboutFlow.Controls.Add((New-AboutCard 'Ce que fait la toolbox' ([Drawing.Color]::FromArgb(37, 99, 235)) @('9 onglets — plus de 200 commandes prêtes', 'Tests SSD / SMART · benchmark · TRIM', 'Audit express & test pré-achat PC', 'Nettoyage temporaires, caches & rapidité', 'Réparation SFC · DISM · réseau')))
-    $aboutFlow.Controls.Add((New-AboutCard 'Code couleur des boutons' ([Drawing.Color]::FromArgb(124, 58, 237)) @('Bordure bleue = commande ici (console)', 'Orange = admin (fenêtre UAC séparée)', 'Blanc = outil Windows intégré', 'Bleu clair = site web officiel', 'Survole un bouton : une infobulle aide')))
+    $aboutFlow.Controls.Add((New-AboutCard 'Ce que fait la toolbox' ([Drawing.Color]::FromArgb(37, 99, 235)) @('13 onglets — plus de 250 commandes prêtes', 'Tests SSD / SMART · benchmark · TRIM', 'Audit express & test pré-achat PC', 'Nettoyage temporaires, caches & rapidité', 'Réparation SFC · DISM · réseau')))
+    $aboutFlow.Controls.Add((New-AboutCard 'Code couleur des boutons' ([Drawing.Color]::FromArgb(37, 99, 235)) @('Bordure bleue = commande ici (console)', 'Orange = admin (fenêtre UAC séparée)', 'Blanc = outil Windows intégré', 'Bleu clair = site web officiel', 'Survole un bouton : une infobulle aide')))
     $aboutFlow.Controls.Add((New-AboutCard 'Bon à savoir' ([Drawing.Color]::FromArgb(21, 128, 61)) @('Sur clé USB : parfait pour l''achat PC', '« Enregistrer rapport » exporte en .txt', 'Dossier tools\ = tes .exe portables', 'Mode admin débloque SFC/DISM/TRIM', 'Tout est lecture seule par défaut')))
 
     # --- Liens officiels de l'auteur ---
@@ -3316,7 +3614,7 @@ namespace WindowsToolbox {
     $donRow.Margin = New-Object Windows.Forms.Padding(0, 4, 14, 14)
     $donRow.FlatStyle = 'Flat'
     $donRow.FlatAppearance.BorderSize = 0
-    $donRow.BackColor = [Drawing.Color]::FromArgb(124, 58, 237)
+    $donRow.BackColor = [Drawing.Color]::FromArgb(37, 99, 235)
     $donRow.ForeColor = [Drawing.Color]::White
     $donRow.Font = New-Object Drawing.Font('Segoe UI', 10, [Drawing.FontStyle]::Bold)
     $donRow.Add_Click({ try { Start-Process $script:DonationUrl } catch { } })
@@ -3359,12 +3657,14 @@ namespace WindowsToolbox {
 
     Build-FavorisTab
 
+    Write-BootLog 'section : assemblage'
     # ---------- Assemblage ----------
     $form.Controls.Add($tabs)
     $form.Controls.Add($top)
     $form.Controls.Add($consolePanel)
     $form.Controls.Add($statusStrip)
 
+    Write-BootLog 'section : hotkeys'
     # ---------- Raccourcis clavier & systray (v2.0) ----------
     $script:Tabs = $tabs
     $script:BalloonShown = $false
@@ -3376,6 +3676,10 @@ namespace WindowsToolbox {
             if ($e.Control -and ($e.KeyCode -ge 'D1') -and ($e.KeyCode -le 'D9')) {
                 $n = [int][char]([string]$e.KeyCode)[1] - [int][char]'1'
                 if ($n -lt $script:Tabs.TabPages.Count) { $script:Tabs.SelectedIndex = $n }
+                $e.Handled = $true
+            }
+            elseif ($e.Control -and ($e.KeyCode -eq 'D0')) {
+                if (9 -lt $script:Tabs.TabPages.Count) { $script:Tabs.SelectedIndex = 9 }
                 $e.Handled = $true
             }
             elseif ($e.Control -and ($e.KeyCode -eq 'H')) { Hide-Toolbox; $e.Handled = $true }
@@ -3414,6 +3718,7 @@ namespace WindowsToolbox {
     Register-ToolboxHotkey -Form $form
     $form.Add_GlobalHotkey({ Toggle-ToolboxVisible })
 
+    Write-BootLog 'section : moteur'
     # ---------- Moteur d'exécution asynchrone ----------
     $script:Busy = $false
     $script:PS = $null
@@ -3483,6 +3788,31 @@ namespace WindowsToolbox {
                     $script:DashLabels[$p[1]].Text = $p[1].ToUpper() + ' : ' + $p[2]
                 }
             }
+                elseif ($line -like 'OKSTORE|*') {
+                    $p = $line -split '\|', 2
+                    Set-StoreCardInstalled -Id $p[1]
+                    Append-StoreLog ('✓ ' + $p[1] + ' installé')
+                    Set-Status ('✓ ' + $p[1] + ' installé')
+                }
+                elseif ($line -like 'FAILSTORE|*') {
+                    $p = $line -split '\|', 3
+                    Append-StoreLog ('✗ Échec — ' + $p[1] + ' (code ' + $p[2] + ')')
+                    Set-Status ('✗ Échec installation ' + $p[1])
+                    if ($script:StoreCardBtns.ContainsKey($p[1])) {
+                        $b = $script:StoreCardBtns[$p[1]]
+                        $b.Text = 'INSTALLER'
+                        $b.Enabled = $true
+                    }
+                }
+                elseif ($line -like 'STOREINST|*') {
+                    $p = $line -split '\|', 2
+                    Set-StoreCardInstalled -Id $p[1]
+                }
+                elseif ($line -like 'STORESCANDONE|*') {
+                    $p = $line -split '\|', 2
+                    Append-StoreLog ('↻ Analyse terminée — ' + $p[1] + ' app(s) du catalogue déjà installée(s)')
+                    Set-Status 'Prêt'
+                }
             else { Append-Console $line }
             }
             if ($script:Handle -and $script:Handle.IsCompleted) {
@@ -3528,12 +3858,16 @@ if ($dHf -and $dHf.InstalledOn) { $q.Enqueue('DASH|maj|du ' + $dHf.InstalledOn.T
     })
 
     $timer.Start()
+    Write-BootLog 'boot: avant ShowDialog'
     [void]$form.ShowDialog()
+    Write-BootLog 'boot: apres ShowDialog'
 }
 
 try {
     Show-Toolbox
 } catch {
+    Write-BootLog ('CRASH FINAL : ' + $_.Exception.Message + ' || ' + $_.ScriptStackTrace)
+    try { ('{0:yyyy-MM-dd HH:mm:ss} | {1} | {2}' -f (Get-Date), $_.Exception.Message, $_.ScriptStackTrace) | Set-Content -LiteralPath (Join-Path $env:TEMP 'Windows-Toolbox-crash.log') } catch { }
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
     [Windows.Forms.MessageBox]::Show("Erreur : $($_.Exception.Message)`n`n$($_.ScriptStackTrace)", 'Windows Toolbox — erreur', 'OK', 'Error') | Out-Null
     exit 1

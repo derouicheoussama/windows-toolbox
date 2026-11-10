@@ -81,16 +81,26 @@ if ($Exe) {
     $ver = '1.0'
     $m = Select-String -LiteralPath $scriptFile -Pattern "ToolboxVersion\s*=\s*'([^']+)'"
     if ($m) { $ver = $m.Matches[0].Groups[1].Value }
-    $exe = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
+    $exePath = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
     $icoFile = Join-Path $PSScriptRoot 'brand\Windows-Toolbox.ico'
-    $icoArg = @()
-    if (Test-Path -LiteralPath $icoFile) { $icoArg = @('-iconFile', $icoFile) }
+    $ps2Args = @{
+        inputFile   = $scriptFile
+        outputFile  = $exePath
+        noConsole   = $true
+        title       = 'Windows 11 Toolbox'
+        description = 'Commandes Windows, tests SSD et diagnostics - Infinity Coder'
+        company     = 'Derouiche Oussama'
+        product     = 'Windows 11 Toolbox'
+        copyright   = '(c) Derouiche Oussama - Infinity Coder'
+        version     = $ver
+    }
+    if (Test-Path -LiteralPath $icoFile) { $ps2Args.iconFile = $icoFile }
     Write-Host ''
     Write-Host " Compilation en EXE (version $ver)…" -ForegroundColor Cyan
-    Invoke-PS2EXE -inputFile $scriptFile -outputFile $exe -noConsole @icoArg -title 'Windows 11 Toolbox' -description 'Commandes Windows, tests SSD et diagnostics - Infinity Coder' -company 'Derouiche Oussama' -product 'Windows 11 Toolbox' -copyright '(c) Derouiche Oussama - Infinity Coder' -version $ver
-    if (Test-Path -LiteralPath $exe) {
-        Write-Host (" EXE créé : " + $exe) -ForegroundColor Green
-        if ($SignCert -or $SignStore) { Invoke-SignFile -File $exe -Pfx $SignCert -Password $CertPassword -StoreSubject $SignStore }
+    Invoke-PS2EXE @ps2Args
+    if (Test-Path -LiteralPath $exePath) {
+        Write-Host (" EXE créé : " + $exePath) -ForegroundColor Green
+        if ($SignCert -or $SignStore) { Invoke-SignFile -File $exePath -Pfx $SignCert -Password $CertPassword -StoreSubject $SignStore }
         $setupExe = Join-Path $PSScriptRoot 'Setup-Toolbox.exe'
         if ((Test-Path -LiteralPath $setupExe) -and ($SignCert -or $SignStore)) { Invoke-SignFile -File $setupExe -Pfx $SignCert -Password $CertPassword -StoreSubject $SignStore }
     }
@@ -104,8 +114,8 @@ if ($SignPs1 -and ($SignCert -or $SignStore)) {
 
 if ($SignStore -and -not ($Exe -or $SignPs1)) {
     $didSomething = $true
-    $exe = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
-    Invoke-SignFile -File $exe -StoreSubject $SignStore
+    $exePath = Join-Path $PSScriptRoot 'Windows-Toolbox.exe'
+    Invoke-SignFile -File $exePath -StoreSubject $SignStore
 }
 
 Write-Host ''

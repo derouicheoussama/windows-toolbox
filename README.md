@@ -1,15 +1,15 @@
 ﻿# 🧰 Windows 11 Toolbox
 
-> **La boîte à outils Windows que tu gardes sur ta clé USB** : diagnostics, tests SSD, réparations, registre, BIOS/UEFI, nettoyage, achat PC, raccourcis — 10 onglets, **250+ commandes cliquables**, dans une seule fenêtre. PowerShell natif, **aucune installation**.
+> **La boîte à outils Windows que tu gardes sur ta clé USB** : diagnostics, tests SSD, réparations, registre, BIOS/UEFI, nettoyage, achat PC, raccourcis, catalogue d'applications, monitoring matériel — 13 onglets, **250+ commandes cliquables**, dans une seule fenêtre. PowerShell natif, **aucune installation**.
 
-**v2.1.0** · Windows 10/11 · ∞ Infinity Coder — [Derouiche Oussama](https://www.derouicheoussama.com) · [GitHub](https://github.com/derouicheoussama) · [💜 Faire un don](https://www.paypal.com/donate)
+**v3.3.0** · Windows 10/11 · ∞ Infinity Coder — [Derouiche Oussama](https://www.derouicheoussama.com) · [GitHub](https://github.com/derouicheoussama) · [💜 Faire un don](https://www.paypal.com/donate)
 
 ---
 
 ## 📑 Sommaire
 
 1. [Démarrage rapide](#-démarrage-rapide)
-2. [Les 10 onglets](#-les-10-onglets)
+2. [Les 13 onglets](#-les-13-onglets)
 3. [Raccourcis clavier & systray](#-raccourcis-clavier--systray)
 4. [Corrections du registre Windows](#-corrections-du-registre-windows)
 5. [BIOS / UEFI](#-bios--uefi)
@@ -53,7 +53,7 @@ Désinstallation : *Paramètres → Applications*, le raccourci « Desinstaller 
 
 À l'ouverture : **inventaire automatique** (PC, SSD, santé) dans la console, puis vérification silencieuse des mises à jour.
 
-## 🗂 Les 10 onglets
+## 🗂 Les 13 onglets
 
 | Onglet | Contenu |
 |---|---|
@@ -66,6 +66,9 @@ Désinstallation : *Paramètres → Applications*, le raccourci « Desinstaller 
 | **🛒 Achat PC** | **TEST PRÉ-ACHAT COMPLET en 1 clic** (specs vs annonce, SMART, BSOD 90 j, activation, Defender, batterie → **verdict + rapport .txt**), tests guidés : **pixels morts**, clavier, son, webcam, USB · **Tests PC PORTABLE** : écran **résolution + Hz + toutes les fréquences supportées**, dalle, **rétro-éclairage** (30→100%), **consommation batterie en watts (temps réel)**, **puissance du chargeur**, touchpad, micro |
 | **🚀 Raccourcis** | Applications (calc, capture, clavier visuel…), réglages rapides (WiFi, thème, nuit…), dossiers usuels, actions système (verrouiller, veille…), **options de l'app** |
 | **🧰 Tiers** | Détection auto des outils installés (CrystalDiskInfo, HWiNFO…), liens officiels, lancement des `.exe` portables du dossier `tools\` |
+| **🛍 Store** | **Catalogue d'applications installables en 1 clic** via winget (35 apps triées par catégorie : diagnostic, utilitaires, sécurité, multimédia, navigateur, bureautique) — bouton **« Analyser les apps installées »** qui marque celles déjà présentes, installation réelle avec sortie en direct dans la console, aucune publicité ni offre cachée |
+| **⭐ Favoris** | Tes commandes préférées épinglées, accessibles en 1 clic |
+| **📊 Monitoring** | Surveillance matérielle en temps réel (CPU, RAM, disques, réseau, capteurs) |
 | **ℹ À propos** | Design cartes, liens officiels, **vérifier les mises à jour**, don |
 
 ## ⌨️ Raccourcis clavier & systray
@@ -73,7 +76,7 @@ Désinstallation : *Paramètres → Applications*, le raccourci « Desinstaller 
 | Raccourci | Action |
 |---|---|
 | **Ctrl+Alt+T** *(global — même hors de la fenêtre)* | Afficher / masquer la toolbox |
-| **Ctrl+1 … Ctrl+9** | Changer d'onglet · **F1** = À propos |
+| **Ctrl+1 … Ctrl+9, Ctrl+0** | Changer d'onglet (Ctrl+0 = 🛍 Store) · **F1** = À propos |
 | **Ctrl+H** | Masquer dans le systray · **Ctrl+U** = vérifier les mises à jour |
 | **Icône systray** | Clic gauche : afficher/masquer · clic droit : menu (audit, mises à jour, quitter) |
 
